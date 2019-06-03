@@ -5,8 +5,7 @@ GTK_LIBS=$(shell pkg-config --libs $(GTK_PACKAGES))
 # CFLAGS=-Wall -g -O2 -std=c11 -pthread $(GTK_CFLAGS)
 CFLAGS=-Wall -g -O2 $(GTK_CFLAGS)
 
-# LIBS=$(GTK_LIBS) -lm
-LIBS=$(GTK_LIBS)
+LIBS=$(GTK_LIBS) -lm
 
 PROGS=balls
 

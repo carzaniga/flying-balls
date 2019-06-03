@@ -12,15 +12,15 @@
 #define DEFAULT_HEIGHT 800
 
 struct ball {
-    float x;
-    float y; 
+    double x;
+    double y;
     unsigned int radius;
 
-    float v_x;
-    float v_y;
+    double v_x;
+    double v_y;
 };
 
-static float delta = 0.01;
+static double delta = 0.01;
 
 static unsigned int width = 0;
 static unsigned int height = 0;
@@ -30,10 +30,10 @@ static unsigned int ball_radius = 4;
 struct ball * balls = 0;
 unsigned int n_balls = 10;
 
-static float g_y = 20;
-static float g_x = 0;
+static double g_y = 20;
+static double g_x = 0;
 
-void balls_init_state() {
+void balls_init_state () {
     srand(time(NULL));
     static const unsigned int border = 10;
     unsigned int w = width < 2*border ? 1 : width - 2*border;
@@ -43,7 +43,32 @@ void balls_init_state() {
 	balls[i].y = border + rand() % h;
 	balls[i].v_x = rand() % 100;
 	balls[i].v_y = rand() % 100;
-	balls[i].radius = ball_radius + rand() % 10;
+	balls[i].radius = ball_radius + rand() % 20;
+    }
+}
+
+static void ball_collision (struct ball * p, struct ball * q) {
+    double dx = q->x - p->x;
+    double dy = q->y - p->y;
+    double d2 = dx*dx + dy*dy;
+    double r = p->radius + q->radius;
+    if (d2 <= r*r) {
+	double dv_x = q->v_x - p->v_x;
+	double dv_y = q->v_y - p->v_y;
+
+	double mp = p->radius * p->radius;
+	double mq = q->radius * q->radius;
+
+	double f = dv_x*dx + dv_y*dy;
+
+	if (f < 0) {
+	    f /= d2*(mp + mq);
+	    p->v_x += 2*mq*f*dx;
+	    p->v_y += 2*mq*f*dy;
+
+	    q->v_x -= 2*mp*f*dx;
+	    q->v_y -= 2*mp*f*dy;
+	}
     }
 }
 
@@ -55,26 +80,34 @@ static void ball_update_state (struct ball * p) {
     p->v_y += delta*g_y;
 
     if (p->x + p->radius > width) {
-	p->x -= p->x + p->radius - width;
-	p->v_x = -p->v_x;
+	if (p->v_x > 0) {
+	    p->x -= p->x + p->radius - width;
+	    p->v_x = -p->v_x;
+	}
     } else if (p->x < p->radius) {
-	p->x += p->radius - p->x;
-	p->v_x = -p->v_x;
+	if (p->v_x < 0) {
+	    p->x += p->radius - p->x;
+	    p->v_x = -p->v_x;
+	}
     } 
 
     if (p->y + p->radius > height) {
-	p->y -= p->y + p->radius - height;
-	p->v_y = -p->v_y;
+	if (p->v_y > 0) {
+	    p->y -= p->y + p->radius - height;
+	    p->v_y = -p->v_y;
+	}
     } else if (p->y < p->radius) {
-	p->y += p->radius - p->y;
-	p->v_y = -p->v_y;
+	if (p->v_y < 0) {
+	    p->y += p->radius - p->y;
+	    p->v_y = -p->v_y;
+	}
     } 
 }
 
 static GdkPixbuf * pixbuf = 0;
-static float clear_alpha = 1.0;
+static double clear_alpha = 1.0;
 
-static void destroy_surface() {
+static void destroy_surface () {
     if (pixbuf)
 	g_object_unref(pixbuf);
 
@@ -105,6 +138,10 @@ static void create_surface(int w, int h) {
 
 static void update_state() {
     for(int i = 0; i < n_balls; ++i)
+	for(int j = i + 1; j < n_balls; ++j)
+	    ball_collision(balls + i, balls + j);
+
+    for(int i = 0; i < n_balls; ++i)
 	ball_update_state(balls + i);
 }
 
@@ -120,8 +157,9 @@ static void do_draw(GtkWidget * widget) {
 	for(int y = 0; y < height; ++y) {
 	    unsigned char * px = pixels + y*row_stride;
 	    for(int x = 0; x < width; ++x) {
-		for(int i = 0; i < n_channels; ++i)
-		    *px++ = 0;
+		*px++ *= 0.95;
+		*px++ *= 0.90;
+		*px++ *= 0.80;
 	    }
 	}
     } else {
@@ -229,15 +267,15 @@ int main(int argc, const char *argv[]) {
 	    continue;
 	if (sscanf(argv[i], "n=%u", &n_balls) == 1)
 	    continue;
-	if (sscanf(argv[i], "trace=%f", &clear_alpha) == 1)
+	if (sscanf(argv[i], "trace=%lf", &clear_alpha) == 1)
 	    continue;
-	if (sscanf(argv[i], "fx=%f", &g_x) == 1)
+	if (sscanf(argv[i], "fx=%lf", &g_x) == 1)
 	    continue;
-	if (sscanf(argv[i], "fy=%f", &g_y) == 1)
+	if (sscanf(argv[i], "fy=%lf", &g_y) == 1)
 	    continue;
 	if (sscanf(argv[i], "radius=%u", &ball_radius) == 1)
 	    continue;
-	if (sscanf(argv[i], "delta=%f", &delta) == 1)
+	if (sscanf(argv[i], "delta=%lf", &delta) == 1)
 	    continue;
 	print_usage(argv[0]);
 	return 1;
