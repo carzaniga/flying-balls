@@ -25,10 +25,14 @@ static double delta = 0.01;
 static unsigned int width = 0;
 static unsigned int height = 0;
 
-static unsigned int ball_radius = 4;
+static unsigned int radius_min = 5;
+static unsigned int radius_max = 10;
+
+static unsigned int v_max = 100;
+static unsigned int v_min = 0;
 
 struct ball * balls = 0;
-unsigned int n_balls = 10;
+unsigned int n_balls = 50;
 
 static double g_y = 20;
 static double g_x = 0;
@@ -38,12 +42,13 @@ void balls_init_state () {
     static const unsigned int border = 10;
     unsigned int w = width < 2*border ? 1 : width - 2*border;
     unsigned int h = height < 2*border ? 1 : height - 2*border;
+
     for (unsigned int i = 0; i < n_balls; ++i) {
 	balls[i].x = border + rand() % w;
 	balls[i].y = border + rand() % h;
-	balls[i].v_x = rand() % 100;
-	balls[i].v_y = rand() % 100;
-	balls[i].radius = ball_radius + rand() % 20;
+	balls[i].v_x = v_min + rand() % (v_max + 1 - v_min);
+	balls[i].v_y = v_min + rand() % (v_max + 1 - v_min);
+	balls[i].radius = radius_min + rand() % (radius_max + 1 - radius_min);
     }
 }
 
@@ -105,7 +110,7 @@ static void ball_update_state (struct ball * p) {
 }
 
 static GdkPixbuf * pixbuf = 0;
-static double clear_alpha = 1.0;
+static double clear_factor [3] = { 0.0, 0.0, 0.0 };
 
 static void destroy_surface () {
     if (pixbuf)
@@ -153,26 +158,15 @@ static void do_draw(GtkWidget * widget) {
     int n_channels = gdk_pixbuf_get_n_channels(pixbuf);
 
     /* clear pixmap */
-    if (clear_alpha >= 1.0) { 
-	for(int y = 0; y < height; ++y) {
-	    unsigned char * px = pixels + y*row_stride;
-	    for(int x = 0; x < width; ++x) {
-		*px++ *= 0.95;
-		*px++ *= 0.90;
-		*px++ *= 0.80;
-	    }
-	}
-    } else {
-	for(int y = 0; y < height; ++y) {
-	    unsigned char * px = pixels + y*row_stride;
-	    for(int x = 0; x < width; ++x)
-		for(int i = 0; i < n_channels; ++i) {
-		    *px = *px * (1.0 - clear_alpha);
-		    ++px;
-		}
+    for(int y = 0; y < height; ++y) {
+	unsigned char * px = pixels + y*row_stride;
+	for(int x = 0; x < width; ++x) {
+	    for(int i = 0; i < n_channels; ++i)
+		*px++ *= clear_factor[i];
 	}
     }
 
+    /* draw balls */
     for(int i = 0; i < n_balls; ++i) {
 	int x0 = balls[i].x <= balls[i].radius ? 0 : balls[i].x - balls[i].radius;
 	int x1 = balls[i].x + balls[i].radius + 1 >= width ? width : balls[i].x + balls[i].radius + 1;
@@ -231,7 +225,7 @@ static void destroy_window(void) {
 
 void print_usage(const char * progname) {
     fprintf(stderr,
-	    "usage: %s [<width>x<height>] [n=<bumber of balls>] [trace=<tracing factor>] [fx=<x-force>] [fy=<y-force>] [radius=<ball radius>] [delta=<frame-delta-time>]\n",
+	    "usage: %s [<width>x<height>] [n=<bumber of balls>] [clear=<clear-red>,<clear-green>,<clear-blue>] [fx=<x-force>] [fy=<y-force>] [radius=<min-radius>-<max-radius>] [delta=<frame-delta-time>]\n",
 	    progname);
 }
 
@@ -267,13 +261,15 @@ int main(int argc, const char *argv[]) {
 	    continue;
 	if (sscanf(argv[i], "n=%u", &n_balls) == 1)
 	    continue;
-	if (sscanf(argv[i], "trace=%lf", &clear_alpha) == 1)
+	if (sscanf(argv[i], "clear=%lf,%lf,%lf", clear_factor, clear_factor + 1, clear_factor + 2) == 3)
 	    continue;
 	if (sscanf(argv[i], "fx=%lf", &g_x) == 1)
 	    continue;
 	if (sscanf(argv[i], "fy=%lf", &g_y) == 1)
 	    continue;
-	if (sscanf(argv[i], "radius=%u", &ball_radius) == 1)
+	if (sscanf(argv[i], "radius=%u-%u", &radius_min, &radius_max) == 2)
+	    continue;
+	if (sscanf(argv[i], "v=%u-%u", &v_min, &v_max) == 2)
 	    continue;
 	if (sscanf(argv[i], "delta=%lf", &delta) == 1)
 	    continue;
