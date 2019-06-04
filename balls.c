@@ -119,7 +119,7 @@ static void destroy_surface () {
     pixbuf = 0;
 }
 
-static void create_surface(int w, int h) {
+static void create_surface (int w, int h) {
     destroy_surface();
     width = w;
     height = h;
@@ -141,7 +141,7 @@ static void create_surface(int w, int h) {
     }
 }
 
-static void update_state() {
+static void update_state () {
     for(int i = 0; i < n_balls; ++i)
 	for(int j = i + 1; j < n_balls; ++j)
 	    ball_collision(balls + i, balls + j);
@@ -150,7 +150,7 @@ static void update_state() {
 	ball_update_state(balls + i);
 }
 
-static void do_draw(GtkWidget * widget) {
+static void do_draw (GtkWidget * widget) {
     guchar * const pixels = gdk_pixbuf_get_pixels(pixbuf);
     int width = gdk_pixbuf_get_width(pixbuf);
     int height = gdk_pixbuf_get_height(pixbuf);
@@ -191,7 +191,7 @@ static void do_draw(GtkWidget * widget) {
 		    GDK_RGB_DITHER_NONE, 0, 0);
 }
 
-static gint resize_pixbuf(GtkWidget *widget, GdkEventConfigure * event) {
+static gint resize_pixbuf (GtkWidget *widget, GdkEventConfigure * event) {
     if (width == widget->allocation.width && height == widget->allocation.height)
 	return FALSE;
 
@@ -200,7 +200,7 @@ static gint resize_pixbuf(GtkWidget *widget, GdkEventConfigure * event) {
     return TRUE;
 }
 
-static gint keyboard_input(GtkWidget *widget, GdkEventKey *event) {
+static gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     if (event->type != GDK_KEY_PRESS)
 	return FALSE;
     switch(event->keyval) {
@@ -214,22 +214,22 @@ static gint keyboard_input(GtkWidget *widget, GdkEventKey *event) {
     return TRUE;
 }
 
-static gboolean expose_event(GtkWidget *widget, GdkEventExpose *event) {
+static gboolean expose_event (GtkWidget *widget, GdkEventExpose *event) {
     do_draw(widget);
     return TRUE;
 }
 
-static void destroy_window(void) {
+static void destroy_window (void) {
     gtk_main_quit();
 }
 
-void print_usage(const char * progname) {
+void print_usage (const char * progname) {
     fprintf(stderr,
 	    "usage: %s [<width>x<height>] [n=<bumber of balls>] [clear=<clear-red>,<clear-green>,<clear-blue>] [fx=<x-force>] [fy=<y-force>] [radius=<min-radius>-<max-radius>] [delta=<frame-delta-time>]\n",
 	    progname);
 }
 
-gboolean timeout(gpointer user_data) {
+gboolean timeout (gpointer user_data) {
     guint64 start = g_get_monotonic_time ();
 
     GtkWidget * window = user_data;
@@ -252,11 +252,11 @@ gboolean timeout(gpointer user_data) {
     return TRUE;
 }
 
-int main(int argc, const char *argv[]) {
+int main (int argc, const char *argv[]) {
     int w = DEFAULT_WIDTH;
     int h = DEFAULT_HEIGHT;
     
-    for(int i = 1; i < argc; ++i) {
+    for (int i = 1; i < argc; ++i) {
 	if (sscanf(argv[i], "%dx%d", &w, &h) == 2)
 	    continue;
 	if (sscanf(argv[i], "n=%u", &n_balls) == 1)
