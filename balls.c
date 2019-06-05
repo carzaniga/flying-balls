@@ -18,6 +18,8 @@ struct ball {
 
     double v_x;
     double v_y;
+
+    guchar rgb_channels[3];
 };
 
 static double delta = 0.01;
@@ -49,6 +51,9 @@ void balls_init_state () {
 	balls[i].v_x = v_min + rand() % (v_max + 1 - v_min);
 	balls[i].v_y = v_min + rand() % (v_max + 1 - v_min);
 	balls[i].radius = radius_min + rand() % (radius_max + 1 - radius_min);
+	balls[i].rgb_channels[0] = rand() % 256;
+	balls[i].rgb_channels[1] = rand() % 256;
+	balls[i].rgb_channels[2] = rand() % 256;
     }
 }
 
@@ -178,8 +183,8 @@ static void do_draw (GtkWidget * widget) {
 	    int radius2_dy2 = balls[i].radius*balls[i].radius - (y - balls[i].y)*(y - balls[i].y);
 	    for (int x = x0; x < x1; ++x) {
 		if ((x - balls[i].x)*(x - balls[i].x) <= radius2_dy2)
-		    for(int i = 0; i < n_channels; ++i)
-			*px++ = 255;
+		    for(int c = 0; c < n_channels; ++c)
+			*px++ = balls[i].rgb_channels[c];
 		else
 		    px += n_channels;
 	    }
