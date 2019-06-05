@@ -50,6 +50,10 @@ void balls_init_state () {
 	balls[i].y = border + rand() % h;
 	balls[i].v_x = v_min + rand() % (v_max + 1 - v_min);
 	balls[i].v_y = v_min + rand() % (v_max + 1 - v_min);
+	if (rand() % 2)
+	    balls[i].v_x = -balls[i].v_x;
+	if (rand() % 2)
+	    balls[i].v_y = -balls[i].v_y;
 	balls[i].radius = radius_min + rand() % (radius_max + 1 - radius_min);
 	balls[i].rgb_channels[0] = rand() % 256;
 	balls[i].rgb_channels[1] = rand() % 256;
