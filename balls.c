@@ -296,8 +296,6 @@ int main (int argc, const char *argv[]) {
 
     g_timeout_add (delta * 1000, timeout, window);
 
-    do_draw(window);
-
     gtk_widget_show_all(window);
 
     gtk_main();
