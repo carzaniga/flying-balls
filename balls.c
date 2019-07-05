@@ -39,6 +39,15 @@ unsigned int n_balls = 50;
 static double g_y = 20;
 static double g_x = 0;
 
+void random_velocity(struct ball * p) {
+    double r2;
+    do {
+	p->v_x = v_min + rand() % (v_max + 1 - v_min);
+	p->v_y = v_min + rand() % (v_max + 1 - v_min);
+	r2 = p->v_x*p->v_x + p->v_y*p->v_y;
+    } while (r2 > v_max*v_max || r2 < v_min*v_min);
+}
+
 void balls_init_state () {
     srand(time(NULL));
     static const unsigned int border = 10;
@@ -48,8 +57,7 @@ void balls_init_state () {
     for (unsigned int i = 0; i < n_balls; ++i) {
 	balls[i].x = border + rand() % w;
 	balls[i].y = border + rand() % h;
-	balls[i].v_x = v_min + rand() % (v_max + 1 - v_min);
-	balls[i].v_y = v_min + rand() % (v_max + 1 - v_min);
+	random_velocity(balls + i);
 	if (rand() % 2)
 	    balls[i].v_x = -balls[i].v_x;
 	if (rand() % 2)
