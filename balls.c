@@ -167,7 +167,9 @@ static void update_state () {
 	ball_update_state(balls + i);
 }
 
-static void do_draw (GtkWidget * widget) {
+static GtkWidget * window;
+
+static void draw_balls_onto_pixbuf () {
     guchar * const pixels = gdk_pixbuf_get_pixels(pixbuf);
     int width = gdk_pixbuf_get_width(pixbuf);
     int height = gdk_pixbuf_get_height(pixbuf);
@@ -202,10 +204,6 @@ static void do_draw (GtkWidget * widget) {
 	    }
 	}
     }
-    
-    gdk_draw_pixbuf(widget->window, NULL, pixbuf,
-		    0, 0, 0, 0, width, height,
-		    GDK_RGB_DITHER_NONE, 0, 0);
 }
 
 static gint resize_pixbuf (GtkWidget *widget, GdkEventConfigure * event) {
@@ -213,7 +211,10 @@ static gint resize_pixbuf (GtkWidget *widget, GdkEventConfigure * event) {
 	return FALSE;
 
     create_surface(widget->allocation.width, widget->allocation.height);
-    do_draw(widget);
+    draw_balls_onto_pixbuf();
+    gdk_draw_pixbuf(window->window, NULL, pixbuf,
+		    0, 0, 0, 0, width, height,
+		    GDK_RGB_DITHER_NONE, 0, 0);
     return TRUE;
 }
 
@@ -231,8 +232,10 @@ static gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     return TRUE;
 }
 
-static gboolean expose_event (GtkWidget *widget, GdkEventExpose *event) {
-    do_draw(widget);
+static gboolean expose_event (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
+    gdk_draw_pixbuf(window->window, NULL, pixbuf,
+		    0, 0, 0, 0, width, height,
+		    GDK_RGB_DITHER_NONE, 0, 0);
     return TRUE;
 }
 
@@ -249,10 +252,11 @@ void print_usage (const char * progname) {
 gboolean timeout (gpointer user_data) {
     guint64 start = g_get_monotonic_time ();
 
-    GtkWidget * window = user_data;
-
     update_state();
-    do_draw(window);
+    draw_balls_onto_pixbuf();
+    gdk_draw_pixbuf(window->window, NULL, pixbuf,
+		    0, 0, 0, 0, width, height,
+		    GDK_RGB_DITHER_NONE, 0, 0);
 
     guint64 elapsed_usec = g_get_monotonic_time () - start;
 
@@ -302,13 +306,17 @@ int main (int argc, const char *argv[]) {
 
     gtk_init(0, 0);
 
-    GtkWidget * window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_resize(GTK_WINDOW(window), w, h);
+    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    assert(window);
+    gtk_window_set_default_size(GTK_WINDOW(window), w, h);
+    gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+    gtk_window_set_title(GTK_WINDOW(window), "Balls");
 
-    gtk_signal_connect(GTK_OBJECT(window), "destroy", GTK_SIGNAL_FUNC(destroy_window), NULL);
-    gtk_signal_connect(GTK_OBJECT(window), "expose_event", (GtkSignalFunc) expose_event, NULL);
-    gtk_signal_connect(GTK_OBJECT(window), "configure_event", (GtkSignalFunc) resize_pixbuf, NULL);
-    gtk_signal_connect(GTK_OBJECT(window), "key_press_event", (GtkSignalFunc) keyboard_input, NULL);
+    g_signal_connect(window, "destroy", G_CALLBACK(destroy_window), NULL);
+    g_signal_connect(window, "expose-event", G_CALLBACK(expose_event), NULL);
+    g_signal_connect(window, "configure_event", G_CALLBACK(resize_pixbuf), NULL);
+    g_signal_connect(window, "key_press_event", G_CALLBACK(keyboard_input), NULL);
+
     gtk_widget_set_events (window, GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK);
 
     g_timeout_add (delta * 1000, timeout, window);
@@ -318,6 +326,7 @@ int main (int argc, const char *argv[]) {
     gtk_main();
 
     free(balls);
+
     destroy_surface();
     return 0;
 }
