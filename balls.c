@@ -138,6 +138,17 @@ static void update_state () {
 static GtkWidget * window;
 static cairo_t * cr = 0;
 
+static void draw_gravity_vector() {
+    cairo_new_path(cr);
+    cairo_move_to(cr, width/2, height/2);
+    cairo_line_to(cr, width/2 + g_x, height/2 + g_y);
+    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+    cairo_set_line_width(cr, 1.0);
+    cairo_stroke(cr);
+    cairo_arc(cr, width/2 + g_x, height/2 + g_y, 3, 0, 2*M_PI);
+    cairo_fill(cr);
+}
+
 static void draw_balls_onto_window () {
     if (!cr)
 	cr = gdk_cairo_create(window->window);
@@ -145,6 +156,8 @@ static void draw_balls_onto_window () {
     /* clear pixmap */
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
     cairo_paint(cr);
+
+    draw_gravity_vector();
 
     /* draw balls */
     for(int i = 0; i < n_balls; ++i) {
@@ -177,6 +190,23 @@ static gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     if (event->type != GDK_KEY_PRESS)
 	return FALSE;
     switch(event->keyval) {
+    case GDK_KEY_Up:
+	g_y -= 10;
+	break;
+    case GDK_KEY_Down:
+	g_y += 10;
+	break;
+    case GDK_KEY_Left:
+	g_x -= 10;
+	break;
+    case GDK_KEY_Right:
+	g_x += 10;
+	break;
+    case GDK_KEY_F:
+    case GDK_KEY_f:
+	g_x = rand() % 201 - 100;
+	g_y = rand() % 201 - 100;
+	break;
     case GDK_KEY_Q:
     case GDK_KEY_q:
 	gtk_main_quit();
