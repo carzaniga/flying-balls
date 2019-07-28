@@ -22,10 +22,10 @@ struct ball {
     guchar rgb_channels[3];
 };
 
-static double delta = 0.01;
+static double delta = 0.01;	/* seconds */
 
-static unsigned int width = 0;
-static unsigned int height = 0;
+static unsigned int width = DEFAULT_WIDTH;
+static unsigned int height = DEFAULT_HEIGHT;
 
 static unsigned int radius_min = 5;
 static unsigned int radius_max = 10;
@@ -126,38 +126,6 @@ static void ball_update_state (struct ball * p) {
     } 
 }
 
-static GdkPixbuf * pixbuf = 0;
-static double clear_factor [3] = { 0.0, 0.0, 0.0 };
-
-static void destroy_surface () {
-    if (pixbuf)
-	g_object_unref(pixbuf);
-
-    pixbuf = 0;
-}
-
-static void create_surface (int w, int h) {
-    destroy_surface();
-    width = w;
-    height = h;
-
-    pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, 0, 8, width, height);
-    assert(pixbuf);
-
-    guchar * pixels = gdk_pixbuf_get_pixels(pixbuf);
-    int row_stride = gdk_pixbuf_get_rowstride(pixbuf);
-    int n_channels = gdk_pixbuf_get_n_channels(pixbuf);
-
-    for(int y = 0; y < height; ++y) {
-	unsigned char * px = pixels;
-	for(int x = 0; x < width; ++x) {
-	    for(int i = 0; i < n_channels; ++i)
-		*px++ = 0;
-	}
-	pixels += row_stride;
-    }
-}
-
 static void update_state () {
     for(int i = 0; i < n_balls; ++i)
 	for(int j = i + 1; j < n_balls; ++j)
@@ -168,53 +136,40 @@ static void update_state () {
 }
 
 static GtkWidget * window;
+static cairo_t * cr = 0;
 
-static void draw_balls_onto_pixbuf () {
-    guchar * const pixels = gdk_pixbuf_get_pixels(pixbuf);
-    int width = gdk_pixbuf_get_width(pixbuf);
-    int height = gdk_pixbuf_get_height(pixbuf);
-    int row_stride = gdk_pixbuf_get_rowstride(pixbuf);
-    int n_channels = gdk_pixbuf_get_n_channels(pixbuf);
+static void draw_balls_onto_window () {
+    if (!cr)
+	cr = gdk_cairo_create(window->window);
 
     /* clear pixmap */
-    for(int y = 0; y < height; ++y) {
-	unsigned char * px = pixels + y*row_stride;
-	for(int x = 0; x < width; ++x) {
-	    for(int i = 0; i < n_channels; ++i)
-		*px++ *= clear_factor[i];
-	}
-    }
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
+    cairo_paint(cr);
 
     /* draw balls */
     for(int i = 0; i < n_balls; ++i) {
-	int x0 = balls[i].x <= balls[i].radius ? 0 : balls[i].x - balls[i].radius;
-	int x1 = balls[i].x + balls[i].radius + 1 >= width ? width : balls[i].x + balls[i].radius + 1;
-	int y0 = balls[i].y <= balls[i].radius ? 0 : balls[i].y - balls[i].radius;
-	int y1 = balls[i].y + balls[i].radius + 1 >= height ? height : balls[i].y + balls[i].radius + 1;
-	for (int y = y0; y < y1; ++y) {
-	    assert(y >= 0);
-	    unsigned char * px = pixels + y*row_stride + x0*n_channels;
-	    int radius2_dy2 = balls[i].radius*balls[i].radius - (y - balls[i].y)*(y - balls[i].y);
-	    for (int x = x0; x < x1; ++x) {
-		if ((x - balls[i].x)*(x - balls[i].x) <= radius2_dy2)
-		    for(int c = 0; c < n_channels; ++c)
-			*px++ = balls[i].rgb_channels[c];
-		else
-		    px += n_channels;
-	    }
-	}
+	cairo_set_source_rgb(cr,
+			     1.0*balls[i].rgb_channels[0]/255,
+			     1.0*balls[i].rgb_channels[1]/255,
+			     1.0*balls[i].rgb_channels[2]/255);
+	cairo_arc(cr, balls[i].x, balls[i].y, balls[i].radius, 0, 2 * M_PI);
+	cairo_fill(cr);
     }
 }
 
-static gint resize_pixbuf (GtkWidget *widget, GdkEventConfigure * event) {
+static gint resize_event (GtkWidget *widget, GdkEventConfigure * event) {
     if (width == widget->allocation.width && height == widget->allocation.height)
 	return FALSE;
 
-    create_surface(widget->allocation.width, widget->allocation.height);
-    draw_balls_onto_pixbuf();
-    gdk_draw_pixbuf(window->window, NULL, pixbuf,
-		    0, 0, 0, 0, width, height,
-		    GDK_RGB_DITHER_NONE, 0, 0);
+    width = widget->allocation.width;
+    height = widget->allocation.height;
+
+    if (cr) {
+        cairo_destroy(cr);
+	cr = gdk_cairo_create(window->window);
+    }
+
+    draw_balls_onto_window();
     return TRUE;
 }
 
@@ -233,19 +188,28 @@ static gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
 }
 
 static gboolean expose_event (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
-    gdk_draw_pixbuf(window->window, NULL, pixbuf,
-		    0, 0, 0, 0, width, height,
-		    GDK_RGB_DITHER_NONE, 0, 0);
     return TRUE;
 }
 
 static void destroy_window (void) {
     gtk_main_quit();
+    if (cr) {
+	cairo_destroy(cr);
+	cr = 0;
+    }
 }
 
 void print_usage (const char * progname) {
     fprintf(stderr,
-	    "usage: %s [<width>x<height>] [n=<bumber of balls>] [clear=<clear-red>,<clear-green>,<clear-blue>] [fx=<x-force>] [fy=<y-force>] [radius=<min-radius>-<max-radius>] [delta=<frame-delta-time>]\n",
+	    "usage: %s [options...]\n"
+	    "options:\n"
+	    "\t<width>x<height>\n"
+	    "\tn=<bumber of balls>\n"
+	    "\tfx=<x-force>\n"
+	    "\tfy=<y-force>\n"
+	    "\tradius=<min-radius>-<max-radius>\n"
+	    "\tv=<min-velocity>-<max-velocity>\n"
+	    "\tdelta=<frame-delta-time>\n",
 	    progname);
 }
 
@@ -253,10 +217,7 @@ gboolean timeout (gpointer user_data) {
     guint64 start = g_get_monotonic_time ();
 
     update_state();
-    draw_balls_onto_pixbuf();
-    gdk_draw_pixbuf(window->window, NULL, pixbuf,
-		    0, 0, 0, 0, width, height,
-		    GDK_RGB_DITHER_NONE, 0, 0);
+    draw_balls_onto_window();
 
     guint64 elapsed_usec = g_get_monotonic_time () - start;
 
@@ -282,8 +243,6 @@ int main (int argc, const char *argv[]) {
 	    continue;
 	if (sscanf(argv[i], "n=%u", &n_balls) == 1)
 	    continue;
-	if (sscanf(argv[i], "clear=%lf,%lf,%lf", clear_factor, clear_factor + 1, clear_factor + 2) == 3)
-	    continue;
 	if (sscanf(argv[i], "fx=%lf", &g_x) == 1)
 	    continue;
 	if (sscanf(argv[i], "fy=%lf", &g_y) == 1)
@@ -301,7 +260,6 @@ int main (int argc, const char *argv[]) {
     balls = malloc(sizeof(struct ball)*n_balls);
     assert(balls);
     
-    create_surface(w, h);
     balls_init_state();
 
     gtk_init(0, 0);
@@ -314,7 +272,7 @@ int main (int argc, const char *argv[]) {
 
     g_signal_connect(window, "destroy", G_CALLBACK(destroy_window), NULL);
     g_signal_connect(window, "expose-event", G_CALLBACK(expose_event), NULL);
-    g_signal_connect(window, "configure_event", G_CALLBACK(resize_pixbuf), NULL);
+    g_signal_connect(window, "configure_event", G_CALLBACK(resize_event), NULL);
     g_signal_connect(window, "key_press_event", G_CALLBACK(keyboard_input), NULL);
 
     gtk_widget_set_events (window, GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK);
@@ -327,6 +285,5 @@ int main (int argc, const char *argv[]) {
 
     free(balls);
 
-    destroy_surface();
     return 0;
 }
