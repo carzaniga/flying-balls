@@ -138,6 +138,10 @@ static void update_state () {
 static GtkWidget * window;
 static cairo_t * cr = 0;
 
+const char * face_filename = 0;
+cairo_surface_t * face_surface = 0;
+int face_x_offset, face_y_offset;
+
 static void draw_gravity_vector() {
     cairo_new_path(cr);
     cairo_move_to(cr, width/2, height/2);
@@ -161,12 +165,28 @@ static void draw_balls_onto_window () {
 
     /* draw balls */
     for(int i = 0; i < n_balls; ++i) {
-	cairo_set_source_rgb(cr,
-			     1.0*balls[i].rgb_channels[0]/255,
-			     1.0*balls[i].rgb_channels[1]/255,
-			     1.0*balls[i].rgb_channels[2]/255);
-	cairo_arc(cr, balls[i].x, balls[i].y, balls[i].radius, 0, 2 * M_PI);
-	cairo_fill(cr);
+	if (face_surface) {
+	    cairo_save(cr);
+	    cairo_translate(cr, balls[i].x, balls[i].y);
+	    cairo_arc(cr, 0.0, 0.0, balls[i].radius, 0, 2 * M_PI);
+	    cairo_clip(cr);
+	    cairo_set_source_rgb(cr,
+				 1.0*balls[i].rgb_channels[0]/255,
+				 1.0*balls[i].rgb_channels[1]/255,
+				 1.0*balls[i].rgb_channels[2]/255);
+	    cairo_paint(cr);
+	    cairo_scale (cr, 1.0 * balls[i].radius / face_x_offset, 1.0 * balls[i].radius / face_y_offset);
+	    cairo_set_source_surface(cr, face_surface, -face_x_offset, -face_y_offset);
+	    cairo_paint(cr);
+	    cairo_restore(cr);
+	} else {
+	    cairo_set_source_rgb(cr,
+				 1.0*balls[i].rgb_channels[0]/255,
+				 1.0*balls[i].rgb_channels[1]/255,
+				 1.0*balls[i].rgb_channels[2]/255);
+	    cairo_arc(cr, balls[i].x, balls[i].y, balls[i].radius, 0, 2 * M_PI);
+	    cairo_fill(cr);
+	}
     }
 }
 
@@ -264,6 +284,20 @@ gboolean timeout (gpointer user_data) {
     return TRUE;
 }
 
+void define_face_surface(const char * filename) {
+    face_surface = cairo_image_surface_create_from_png (filename);
+    switch (cairo_surface_status(face_surface)) {
+    case CAIRO_STATUS_SUCCESS:
+	face_x_offset = cairo_image_surface_get_width (face_surface) / 2;
+	face_y_offset = cairo_image_surface_get_height (face_surface) / 2;
+	break;
+    default:
+	cairo_surface_destroy (face_surface);
+	face_surface = 0;
+	fprintf(stderr, "could not create sorfece from PNG file %s\n", filename);
+    }
+}
+
 int main (int argc, const char *argv[]) {
     int w = DEFAULT_WIDTH;
     int h = DEFAULT_HEIGHT;
@@ -283,6 +317,10 @@ int main (int argc, const char *argv[]) {
 	    continue;
 	if (sscanf(argv[i], "delta=%lf", &delta) == 1)
 	    continue;
+	if (strncmp(argv[i], "face=", 5) == 0) {
+	    define_face_surface(argv[i] + 5);
+	    continue;
+	}
 	print_usage(argv[0]);
 	return 1;
     }

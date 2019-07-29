@@ -8,6 +8,9 @@ LIBS=$(GTK_LIBS)
 
 PROGS=balls
 
+.PHONY: default
+default: all
+
 .PHONY: run
 run: balls
 	./balls
