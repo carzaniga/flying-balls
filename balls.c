@@ -20,6 +20,8 @@ struct ball {
     double v_y;
 
     guchar rgb_channels[3];
+
+    cairo_surface_t * surface;
 };
 
 static double delta = 0.01;	/* seconds */
@@ -143,10 +145,6 @@ static void update_state () {
 static GtkWidget * window;
 static cairo_t * cr = 0;
 
-const char * face_filename = 0;
-cairo_surface_t * face_surface = 0;
-int face_x_offset, face_y_offset;
-
 static int gravity_vector_countdown = 0;
 static int gravity_vector_init = 300;
 
@@ -165,16 +163,70 @@ static void draw_gravity_vector() {
     }
 }
 
+static int balls_graphics_initialized = 0;
+const char * face_filename = 0;
+
 static void init_graphics() {
     if (cr)
         cairo_destroy(cr);
     cr = gdk_cairo_create(window->window);
+    if (balls_graphics_initialized)
+	return;
+
+    cairo_surface_t * face_surface;
+    int face_x_offset, face_y_offset;
+
+    if (face_filename) {
+	face_surface = cairo_image_surface_create_from_png (face_filename);
+	switch (cairo_surface_status(face_surface)) {
+	case CAIRO_STATUS_SUCCESS:
+	    face_x_offset = cairo_image_surface_get_width (face_surface) / 2;
+	    face_y_offset = cairo_image_surface_get_height (face_surface) / 2;
+	    break;
+	default:
+	    cairo_surface_destroy (face_surface);
+	    face_surface = 0;
+	    fprintf(stderr, "could not create sorfece from PNG file %s\n", face_filename);
+	}
+    } else
+	face_surface = 0;
+
+    for(int i = 0; i < n_balls; ++i) {
+	balls[i].surface = gdk_window_create_similar_surface(window->window,
+							     CAIRO_CONTENT_COLOR_ALPHA,
+							     2*balls[i].radius, 2*balls[i].radius);
+	cairo_t * ball_cr = cairo_create(balls[i].surface);
+	cairo_translate(ball_cr, balls[i].radius, balls[i].radius);
+	cairo_arc(ball_cr, 0.0, 0.0, balls[i].radius, 0, 2 * M_PI);
+	cairo_clip(ball_cr);
+	cairo_set_source_rgb(ball_cr,
+			     1.0*balls[i].rgb_channels[0]/255,
+			     1.0*balls[i].rgb_channels[1]/255,
+			     1.0*balls[i].rgb_channels[2]/255);
+	cairo_paint(ball_cr);
+	if (face_surface) {
+	    cairo_scale (ball_cr, 1.0 * balls[i].radius / face_x_offset, 1.0 * balls[i].radius / face_y_offset);
+	    cairo_set_source_surface(ball_cr, face_surface, -face_x_offset, -face_y_offset);
+	    cairo_paint(ball_cr);
+	}
+	cairo_surface_flush(balls[i].surface);
+	cairo_destroy(ball_cr);
+    }
+    if (face_surface)
+	cairo_surface_destroy (face_surface);
+
+    balls_graphics_initialized = 1;
 }
 
 static void destroy_graphics() {
     if (cr) {
 	cairo_destroy(cr);
 	cr = 0;
+    }
+    if (balls_graphics_initialized) {
+	for(int i = 0; i < n_balls; ++i)
+	    cairo_surface_destroy(balls[i].surface);
+	balls_graphics_initialized = 0;
     }
 }
 
@@ -187,28 +239,11 @@ static void draw_balls_onto_window () {
 
     /* draw balls */
     for(int i = 0; i < n_balls; ++i) {
-	if (face_surface) {
-	    cairo_save(cr);
-	    cairo_translate(cr, balls[i].x, balls[i].y);
-	    cairo_arc(cr, 0.0, 0.0, balls[i].radius, 0, 2 * M_PI);
-	    cairo_clip(cr);
-	    cairo_set_source_rgb(cr,
-				 1.0*balls[i].rgb_channels[0]/255,
-				 1.0*balls[i].rgb_channels[1]/255,
-				 1.0*balls[i].rgb_channels[2]/255);
-	    cairo_paint(cr);
-	    cairo_scale (cr, 1.0 * balls[i].radius / face_x_offset, 1.0 * balls[i].radius / face_y_offset);
-	    cairo_set_source_surface(cr, face_surface, -face_x_offset, -face_y_offset);
-	    cairo_paint(cr);
-	    cairo_restore(cr);
-	} else {
-	    cairo_set_source_rgb(cr,
-				 1.0*balls[i].rgb_channels[0]/255,
-				 1.0*balls[i].rgb_channels[1]/255,
-				 1.0*balls[i].rgb_channels[2]/255);
-	    cairo_arc(cr, balls[i].x, balls[i].y, balls[i].radius, 0, 2 * M_PI);
-	    cairo_fill(cr);
-	}
+	cairo_save(cr);
+	cairo_translate(cr, balls[i].x - balls[i].radius, balls[i].y - balls[i].radius);
+	cairo_set_source_surface(cr, balls[i].surface, 0, 0);
+	cairo_paint(cr);
+	cairo_restore(cr);
     }
 }
 
@@ -269,7 +304,6 @@ static gboolean expose_event (GtkWidget *widget, GdkEventExpose *event, gpointer
 
 static void destroy_window (void) {
     gtk_main_quit();
-    destroy_graphics();
 }
 
 void print_usage (const char * progname) {
@@ -308,20 +342,6 @@ gboolean timeout (gpointer user_data) {
     return TRUE;
 }
 
-void define_face_surface(const char * filename) {
-    face_surface = cairo_image_surface_create_from_png (filename);
-    switch (cairo_surface_status(face_surface)) {
-    case CAIRO_STATUS_SUCCESS:
-	face_x_offset = cairo_image_surface_get_width (face_surface) / 2;
-	face_y_offset = cairo_image_surface_get_height (face_surface) / 2;
-	break;
-    default:
-	cairo_surface_destroy (face_surface);
-	face_surface = 0;
-	fprintf(stderr, "could not create sorfece from PNG file %s\n", filename);
-    }
-}
-
 int main (int argc, const char *argv[]) {
     int w = DEFAULT_WIDTH;
     int h = DEFAULT_HEIGHT;
@@ -342,7 +362,7 @@ int main (int argc, const char *argv[]) {
 	if (sscanf(argv[i], "delta=%lf", &delta) == 1)
 	    continue;
 	if (strncmp(argv[i], "face=", 5) == 0) {
-	    define_face_surface(argv[i] + 5);
+	    face_filename = argv[i] + 5;
 	    continue;
 	}
 	if (sscanf(argv[i], "clear=%lf", &clear_alpha) == 1)
@@ -378,6 +398,8 @@ int main (int argc, const char *argv[]) {
 
     gtk_main();
 
+    gtk_widget_destroy(window);
+    destroy_graphics();
     free(balls);
 
     return 0;
