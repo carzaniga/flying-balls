@@ -39,6 +39,8 @@ unsigned int n_balls = 50;
 static double g_y = 20;
 static double g_x = 0;
 
+static double clear_alpha = 1.0;
+
 void random_velocity(struct ball * p) {
     double r2;
     do {
@@ -142,15 +144,22 @@ const char * face_filename = 0;
 cairo_surface_t * face_surface = 0;
 int face_x_offset, face_y_offset;
 
+static int gravity_vector_countdown = 0;
+static int gravity_vector_init = 300;
+
 static void draw_gravity_vector() {
-    cairo_new_path(cr);
-    cairo_move_to(cr, width/2, height/2);
-    cairo_line_to(cr, width/2 + g_x, height/2 + g_y);
-    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
-    cairo_set_line_width(cr, 1.0);
-    cairo_stroke(cr);
-    cairo_arc(cr, width/2 + g_x, height/2 + g_y, 3, 0, 2*M_PI);
-    cairo_fill(cr);
+    if (gravity_vector_countdown != 0) {
+	cairo_new_path(cr);
+	cairo_move_to(cr, width/2, height/2);
+	cairo_line_to(cr, width/2 + g_x, height/2 + g_y);
+	cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+	cairo_set_line_width(cr, 1.0);
+	cairo_stroke(cr);
+	cairo_arc(cr, width/2 + g_x, height/2 + g_y, 3, 0, 2*M_PI);
+	cairo_fill(cr);
+	if (gravity_vector_countdown > 0)
+	    --gravity_vector_countdown;
+    }
 }
 
 static void draw_balls_onto_window () {
@@ -158,7 +167,7 @@ static void draw_balls_onto_window () {
 	cr = gdk_cairo_create(window->window);
 
     /* clear pixmap */
-    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, clear_alpha);
     cairo_paint(cr);
 
     draw_gravity_vector();
@@ -212,20 +221,23 @@ static gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     switch(event->keyval) {
     case GDK_KEY_Up:
 	g_y -= 10;
+	gravity_vector_countdown = gravity_vector_init;
 	break;
     case GDK_KEY_Down:
 	g_y += 10;
+	gravity_vector_countdown = gravity_vector_init;
 	break;
     case GDK_KEY_Left:
 	g_x -= 10;
+	gravity_vector_countdown = gravity_vector_init;
 	break;
     case GDK_KEY_Right:
 	g_x += 10;
+	gravity_vector_countdown = gravity_vector_init;
 	break;
-    case GDK_KEY_F:
-    case GDK_KEY_f:
-	g_x = rand() % 201 - 100;
-	g_y = rand() % 201 - 100;
+    case GDK_KEY_G:
+    case GDK_KEY_g:
+	gravity_vector_countdown = gravity_vector_init;
 	break;
     case GDK_KEY_Q:
     case GDK_KEY_q:
@@ -259,7 +271,8 @@ void print_usage (const char * progname) {
 	    "\tfy=<y-force>\n"
 	    "\tradius=<min-radius>-<max-radius>\n"
 	    "\tv=<min-velocity>-<max-velocity>\n"
-	    "\tdelta=<frame-delta-time>\n",
+	    "\tdelta=<frame-delta-time>\n"
+	    "\tclear=<clear-alpha>\n",
 	    progname);
 }
 
@@ -321,6 +334,8 @@ int main (int argc, const char *argv[]) {
 	    define_face_surface(argv[i] + 5);
 	    continue;
 	}
+	if (sscanf(argv[i], "clear=%lf", &clear_alpha) == 1)
+	    continue;
 	print_usage(argv[0]);
 	return 1;
     }
