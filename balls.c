@@ -41,7 +41,7 @@ static double g_x = 0;
 
 static double clear_alpha = 1.0;
 
-void random_velocity(struct ball * p) {
+static void random_velocity(struct ball * p) {
     double r2;
     do {
 	p->v_x = v_min + rand() % (v_max + 1 - v_min);
@@ -137,6 +137,9 @@ static void update_state () {
 	ball_update_state(balls + i);
 }
 
+/* Graphics System
+ */
+
 static GtkWidget * window;
 static cairo_t * cr = 0;
 
@@ -162,10 +165,20 @@ static void draw_gravity_vector() {
     }
 }
 
-static void draw_balls_onto_window () {
-    if (!cr)
-	cr = gdk_cairo_create(window->window);
+static void init_graphics() {
+    if (cr)
+        cairo_destroy(cr);
+    cr = gdk_cairo_create(window->window);
+}
 
+static void destroy_graphics() {
+    if (cr) {
+	cairo_destroy(cr);
+	cr = 0;
+    }
+}
+
+static void draw_balls_onto_window () {
     /* clear pixmap */
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, clear_alpha);
     cairo_paint(cr);
@@ -206,10 +219,7 @@ static gint resize_event (GtkWidget *widget, GdkEventConfigure * event) {
     width = widget->allocation.width;
     height = widget->allocation.height;
 
-    if (cr) {
-        cairo_destroy(cr);
-	cr = gdk_cairo_create(window->window);
-    }
+    init_graphics();
 
     draw_balls_onto_window();
     return TRUE;
@@ -249,16 +259,17 @@ static gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     return TRUE;
 }
 
+static void show_event (GtkWidget *widget, gpointer data) {
+    init_graphics();
+}
+
 static gboolean expose_event (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
     return TRUE;
 }
 
 static void destroy_window (void) {
     gtk_main_quit();
-    if (cr) {
-	cairo_destroy(cr);
-	cr = 0;
-    }
+    destroy_graphics();
 }
 
 void print_usage (const char * progname) {
@@ -355,8 +366,9 @@ int main (int argc, const char *argv[]) {
 
     g_signal_connect(window, "destroy", G_CALLBACK(destroy_window), NULL);
     g_signal_connect(window, "expose-event", G_CALLBACK(expose_event), NULL);
-    g_signal_connect(window, "configure_event", G_CALLBACK(resize_event), NULL);
-    g_signal_connect(window, "key_press_event", G_CALLBACK(keyboard_input), NULL);
+    g_signal_connect(window, "configure-event", G_CALLBACK(resize_event), NULL);
+    g_signal_connect(window, "show", G_CALLBACK(show_event), NULL);
+    g_signal_connect(window, "key-press-event", G_CALLBACK(keyboard_input), NULL);
 
     gtk_widget_set_events (window, GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK);
 
