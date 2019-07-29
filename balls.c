@@ -398,7 +398,6 @@ int main (int argc, const char *argv[]) {
 
     gtk_main();
 
-    gtk_widget_destroy(window);
     destroy_graphics();
     free(balls);
 
