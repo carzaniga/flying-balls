@@ -67,9 +67,6 @@ void balls_init_state () {
 	if (rand() % 2)
 	    balls[i].v_y = -balls[i].v_y;
 	balls[i].radius = radius_min + rand() % (radius_max + 1 - radius_min);
-	balls[i].rgb_channels[0] = rand() % 256;
-	balls[i].rgb_channels[1] = rand() % 256;
-	balls[i].rgb_channels[2] = rand() % 256;
     }
 }
 
@@ -199,10 +196,8 @@ static void init_graphics() {
 	cairo_translate(ball_cr, balls[i].radius, balls[i].radius);
 	cairo_arc(ball_cr, 0.0, 0.0, balls[i].radius, 0, 2 * M_PI);
 	cairo_clip(ball_cr);
-	cairo_set_source_rgb(ball_cr,
-			     1.0*balls[i].rgb_channels[0]/255,
-			     1.0*balls[i].rgb_channels[1]/255,
-			     1.0*balls[i].rgb_channels[2]/255);
+
+	cairo_set_source_rgb(ball_cr, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255);
 	cairo_paint(ball_cr);
 	if (face_surface) {
 	    cairo_scale (ball_cr, 1.0 * balls[i].radius / face_x_offset, 1.0 * balls[i].radius / face_y_offset);
