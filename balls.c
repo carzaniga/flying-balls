@@ -317,28 +317,35 @@ void print_usage (const char * progname) {
 	    "\tradius=<min-radius>-<max-radius>\n"
 	    "\tv=<min-velocity>-<max-velocity>\n"
 	    "\tdelta=<frame-delta-time>\n"
-	    "\tclear=<clear-alpha>\n",
+	    "\tclear=<clear-alpha>\n"
+	    "\t-v :: enables rendering timing statitstics\n",
 	    progname);
 }
 
+static int rendering_statistics = 0;
+
 gboolean timeout (gpointer user_data) {
-    guint64 start = g_get_monotonic_time ();
+    guint64 start = 0, elapsed_usec;
+    if (rendering_statistics)
+	start = g_get_monotonic_time ();
 
     update_state();
     draw_balls_onto_window();
 
-    guint64 elapsed_usec = g_get_monotonic_time () - start;
+    if (rendering_statistics) {
+	elapsed_usec = g_get_monotonic_time () - start;
 
-    static guint64 elapsed_usec_total = 0;
-    static unsigned int samples = 0;
-    if (samples == 30) {
-	printf("\rtime for one frame: %lu usec (avg over %u samples)  ", elapsed_usec_total / samples, samples);
-	fflush(stdout);
-	samples = 0;
-	elapsed_usec_total = 0;
+	static guint64 elapsed_usec_total = 0;
+	static unsigned int samples = 0;
+	if (samples == 30) {
+	    printf("\rtime for one frame: %lu usec (avg over %u samples)  ", elapsed_usec_total / samples, samples);
+	    fflush(stdout);
+	    samples = 0;
+	    elapsed_usec_total = 0;
+	}
+	++samples;
+	elapsed_usec_total += elapsed_usec;
     }
-    ++samples;
-    elapsed_usec_total += elapsed_usec;
     return TRUE;
 }
 
@@ -367,6 +374,10 @@ int main (int argc, const char *argv[]) {
 	}
 	if (sscanf(argv[i], "clear=%lf", &clear_alpha) == 1)
 	    continue;
+	if (strcmp(argv[i], "-v") == 0) {
+	    rendering_statistics = 1;
+	    continue;
+	}
 	print_usage(argv[0]);
 	return 1;
     }
@@ -397,6 +408,9 @@ int main (int argc, const char *argv[]) {
     gtk_widget_show_all(window);
 
     gtk_main();
+
+    if (rendering_statistics)
+	printf("\n");
 
     destroy_graphics();
     free(balls);
