@@ -39,6 +39,8 @@ unsigned int n_balls = 50;
 static double g_y = 20;
 static double g_x = 0;
 
+static double clear_alpha = 1.0;
+
 void random_velocity(struct ball * p) {
     double r2;
     do {
@@ -154,7 +156,7 @@ static void draw_balls_onto_window () {
 	cr = gdk_cairo_create(window->window);
 
     /* clear pixmap */
-    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, clear_alpha);
     cairo_paint(cr);
 
     draw_gravity_vector();
@@ -239,7 +241,8 @@ void print_usage (const char * progname) {
 	    "\tfy=<y-force>\n"
 	    "\tradius=<min-radius>-<max-radius>\n"
 	    "\tv=<min-velocity>-<max-velocity>\n"
-	    "\tdelta=<frame-delta-time>\n",
+	    "\tdelta=<frame-delta-time>\n"
+	    "\tclear=<clear-alpha>\n"
 	    progname);
 }
 
@@ -282,6 +285,8 @@ int main (int argc, const char *argv[]) {
 	if (sscanf(argv[i], "v=%u-%u", &v_min, &v_max) == 2)
 	    continue;
 	if (sscanf(argv[i], "delta=%lf", &delta) == 1)
+	    continue;
+	if (sscanf(argv[i], "clear=%lf", &clear_alpha) == 1)
 	    continue;
 	print_usage(argv[0]);
 	return 1;
