@@ -315,6 +315,7 @@ void print_usage (const char * progname) {
 	    "\tradius=<min-radius>-<max-radius>\n"
 	    "\tv=<min-velocity>-<max-velocity>\n"
 	    "\tdelta=<frame-delta-time>\n"
+	    "\tface=<filename>\n"
 	    "\tclear=<clear-alpha>\n"
 	    "\t-v :: enables rendering timing statitstics\n",
 	    "\t-c :: disables ball-ball collisions\n",
