@@ -24,6 +24,8 @@ struct ball {
     cairo_surface_t * surface;
 };
 
+static int collisions = 1;
+
 static double delta = 0.01;	/* seconds */
 
 static unsigned int width = DEFAULT_WIDTH;
@@ -128,10 +130,11 @@ static void ball_update_state (struct ball * p) {
 }
 
 static void update_state () {
-    for(int i = 0; i < n_balls; ++i)
-	for(int j = i + 1; j < n_balls; ++j)
-	    ball_collision(balls + i, balls + j);
-
+    if (collisions) {
+	for(int i = 0; i < n_balls; ++i)
+	    for(int j = i + 1; j < n_balls; ++j)
+		ball_collision(balls + i, balls + j);
+    }
     for(int i = 0; i < n_balls; ++i)
 	ball_update_state(balls + i);
 }
@@ -314,6 +317,7 @@ void print_usage (const char * progname) {
 	    "\tdelta=<frame-delta-time>\n"
 	    "\tclear=<clear-alpha>\n"
 	    "\t-v :: enables rendering timing statitstics\n",
+	    "\t-c :: disables ball-ball collisions\n",
 	    progname);
 }
 
@@ -371,6 +375,10 @@ int main (int argc, const char *argv[]) {
 	    continue;
 	if (strcmp(argv[i], "-v") == 0) {
 	    rendering_statistics = 1;
+	    continue;
+	}
+	if (strcmp(argv[i], "-c") == 0) {
+	    collisions = 0;
 	    continue;
 	}
 	print_usage(argv[0]);
