@@ -317,7 +317,7 @@ void print_usage (const char * progname) {
 	    "\tdelta=<frame-delta-time>\n"
 	    "\tface=<filename>\n"
 	    "\tclear=<clear-alpha>\n"
-	    "\t-v :: enables rendering timing statitstics\n",
+	    "\t-v :: enables rendering timing statitstics\n"
 	    "\t-c :: disables ball-ball collisions\n",
 	    progname);
 }
