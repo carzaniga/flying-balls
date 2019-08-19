@@ -97,7 +97,7 @@ static void ball_collision (struct ball * p, struct ball * q) {
     }
 }
 
-static void ball_update_state (struct ball * p) {
+void ball_update_state (struct ball * p) {
     p->x += delta*p->v_x + delta*delta*g_x/2.0;
     p->v_x += delta*g_x;
 
@@ -129,14 +129,21 @@ static void ball_update_state (struct ball * p) {
     } 
 }
 
-static void update_state () {
-    if (collisions) {
-	for(int i = 0; i < n_balls; ++i)
-	    for(int j = i + 1; j < n_balls; ++j)
-		ball_collision(balls + i, balls + j);
-    }
+void movement_and_borders () {
     for(int i = 0; i < n_balls; ++i)
 	ball_update_state(balls + i);
+}
+
+void check_collisions () {
+    for(int i = 0; i < n_balls; ++i)
+	for(int j = i + 1; j < n_balls; ++j)
+	    ball_collision(balls + i, balls + j);
+}
+
+static void update_state () {
+    if (collisions)
+	check_collisions();
+    movement_and_borders();
 }
 
 /* Graphics System
