@@ -173,11 +173,11 @@ static void c_index_add_ball(struct bt_node * n, const struct ball * b) {
 }
 
 static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball * b) {
-    assert(t);
     double w = width;
     double h = height;
     double ref_x = 0.0;
     double ref_y = 0.0;
+    c_index_init_node(n, b);
     for (;;) {
 	c_index_add_ball(t, b);
 	if (w > h) { /* horizontal split */
@@ -186,7 +186,7 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
 		    w = t->ball->x - ref_x;
 		    t = t->left;
 		} else {
-		    t->left = c_index_init_node(n, b);
+		    t->left = n;
 		    return;
 		}
 	    } else {
@@ -195,7 +195,7 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
 		    ref_x = t->ball->x;
 		    t = t->right;
 		} else {
-		    t->right = c_index_init_node(n, b);
+		    t->right = n;
 		    return;
 		}
 	    }
@@ -205,7 +205,7 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
 		    h = t->ball->y - ref_y;
 		    t = t->left;
 		} else {
-		    t->left = c_index_init_node(n, b);
+		    t->left = n;
 		    return;
 		}
 	    } else {
@@ -214,7 +214,7 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
 		    ref_y = t->ball->y;
 		    t = t->right;
 		} else {
-		    t->right = c_index_init_node(n, b);
+		    t->right = n;
 		    return;
 		}
 	    }
@@ -224,9 +224,8 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
 
 void c_index_build() {
     c_index_init_node(c_index, balls);
-    for(int i = 1; i < n_balls; ++i) {
+    for(int i = 1; i < n_balls; ++i)
 	c_index_insert(c_index, c_index + i, balls + i);
-    }
 }
 
 struct bt_node ** c_index_stack = 0;
