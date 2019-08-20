@@ -24,28 +24,26 @@ struct ball {
     cairo_surface_t * surface;
 };
 
-static int collisions = 1;
+double delta = 0.01;	/* seconds */
 
-static double delta = 0.01;	/* seconds */
+unsigned int width = DEFAULT_WIDTH;
+unsigned int height = DEFAULT_HEIGHT;
 
-static unsigned int width = DEFAULT_WIDTH;
-static unsigned int height = DEFAULT_HEIGHT;
+unsigned int radius_min = 5;
+unsigned int radius_max = 10;
 
-static unsigned int radius_min = 5;
-static unsigned int radius_max = 10;
-
-static unsigned int v_max = 100;
-static unsigned int v_min = 0;
+unsigned int v_max = 100;
+unsigned int v_min = 0;
 
 struct ball * balls = 0;
 unsigned int n_balls = 50;
 
-static double g_y = 20;
-static double g_x = 0;
+double g_y = 20;
+double g_x = 0;
 
-static double clear_alpha = 1.0;
+double clear_alpha = 1.0;
 
-static void random_velocity(struct ball * p) {
+void random_velocity(struct ball * p) {
     double r2;
     do {
 	p->v_x = v_min + rand() % (v_max + 1 - v_min);
@@ -72,7 +70,7 @@ void balls_init_state () {
     }
 }
 
-static void ball_collision (struct ball * p, struct ball * q) {
+void ball_collision (struct ball * p, struct ball * q) {
     double dx = q->x - p->x;
     double dy = q->y - p->y;
     double d2 = dx*dx + dy*dy;
@@ -134,14 +132,191 @@ void movement_and_borders () {
 	ball_update_state(balls + i);
 }
 
-void check_collisions () {
+/* Collision check with index
+*/
+struct rectangle {
+    double min_x;			/* left */
+    double min_y;			/* bottom */
+    double max_x;			/* right */
+    double max_y;			/* top */
+};
+
+struct bt_node {
+    struct ball * ball;
+    struct rectangle r;
+    struct bt_node * left;
+    struct bt_node * right;
+};
+
+struct bt_node * c_index = 0;
+
+static struct bt_node * c_index_init_node(struct bt_node * n, struct ball * b) {
+    n->ball = b;
+    n->r.min_x = b->x - b->radius;
+    n->r.min_y = b->y - b->radius;
+    n->r.max_x = b->x + b->radius;
+    n->r.max_y = b->y + b->radius;
+    n->left = 0;
+    n->right = 0;
+    return n;
+}
+
+static void c_index_add_ball(struct bt_node * n, const struct ball * b) {
+    if (n->r.min_x > b->x - b->radius)
+	n->r.min_x = b->x - b->radius;
+    if (n->r.min_y > b->y - b->radius)
+	n->r.min_y = b->y - b->radius;
+    if (n->r.max_x < b->x + b->radius)
+	n->r.max_x = b->x + b->radius;
+    if (n->r.max_y < b->y + b->radius)
+	n->r.max_y = b->y + b->radius;
+}
+
+static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball * b) {
+    assert(t);
+    double w = width;
+    double h = height;
+    double ref_x = 0.0;
+    double ref_y = 0.0;
+    for (;;) {
+	c_index_add_ball(t, b);
+	if (w > h) { /* horizontal split */
+	    if (b->x <= t->ball->x) {
+		if (t->left) {
+		    w = t->ball->x - ref_x;
+		    t = t->left;
+		} else {
+		    t->left = c_index_init_node(n, b);
+		    return;
+		}
+	    } else {
+		if (t->right) {
+		    w -= t->ball->x - ref_x;
+		    ref_x = t->ball->x;
+		    t = t->right;
+		} else {
+		    t->right = c_index_init_node(n, b);
+		    return;
+		}
+	    }
+	} else {		/* vertical split */
+	    if (b->y <= t->ball->y) {
+		if (t->left) {
+		    h = t->ball->y - ref_y;
+		    t = t->left;
+		} else {
+		    t->left = c_index_init_node(n, b);
+		    return;
+		}
+	    } else {
+		if (t->right) {
+		    h -= t->ball->y - ref_y;
+		    ref_y = t->ball->y;
+		    t = t->right;
+		} else {
+		    t->right = c_index_init_node(n, b);
+		    return;
+		}
+	    }
+	}
+    }
+}
+
+void c_index_build() {
+    c_index_init_node(c_index, balls);
+    for(int i = 1; i < n_balls; ++i) {
+	c_index_insert(c_index, c_index + i, balls + i);
+    }
+}
+
+struct bt_node ** c_index_stack = 0;
+unsigned int c_index_stack_top = 0;
+
+void c_index_stack_clear() {
+    c_index_stack_top = 0;
+}
+
+static void c_index_stack_push(struct bt_node * n) {
+    c_index_stack[c_index_stack_top++] = n;
+}
+
+static struct bt_node * c_index_stack_pop() {
+    if (c_index_stack_top > 0)
+	return c_index_stack[--c_index_stack_top];
+    else
+	return 0;
+}
+
+static int c_index_ball_in_rectangle(const struct bt_node * n, const struct ball * b) {
+    return n->r.min_x <= b->x + b->radius
+	&& n->r.max_x >= b->x - b->radius
+	&& n->r.min_y <= b->y + b->radius
+	&& n->r.max_y >= b->y - b->radius;
+}
+
+static int c_index_must_check(const struct bt_node * n, const struct ball * b) {
+    return n != 0 && n->ball < b && c_index_ball_in_rectangle(n, b);
+}
+
+void c_index_check_collisions() {
+    for(struct ball * b = balls + 1; b < balls + n_balls; ++b) {
+	c_index_stack_clear();
+	struct bt_node * n = c_index;
+	do {
+	    ball_collision(n->ball, b);
+	    if (c_index_must_check(n->left, b)) {
+		if (c_index_must_check(n->right, b)) {
+		    c_index_stack_push(n->right);
+		}
+		n = n->left;
+	    } else if (c_index_must_check(n->right, b)) {
+		n = n->right;
+	    } else {
+		n = c_index_stack_pop();
+	    }
+	} while (n);
+    }
+}
+
+int c_index_init() {
+    if (!c_index)
+	c_index = malloc(sizeof(struct bt_node) * n_balls);
+    if (!c_index)
+	return 0;
+    if (!c_index_stack)
+	c_index_stack = malloc(sizeof(struct bt_node *) * n_balls);
+    if (!c_index_stack)
+	return 0;
+    return 1;
+}
+
+void c_index_destroy() {
+    if (c_index)
+	free(c_index);
+    if (c_index_stack)
+	free(c_index_stack);
+    c_index = 0;
+    c_index_stack = 0;
+}
+
+/* Trivial collision check
+ */
+
+void check_collisions_simple () {
     for(int i = 0; i < n_balls; ++i)
 	for(int j = i + 1; j < n_balls; ++j)
 	    ball_collision(balls + i, balls + j);
 }
 
-static void update_state () {
-    if (collisions)
+void check_collisions_with_index () {
+    c_index_build();
+    c_index_check_collisions();
+}
+
+void (*check_collisions)() = 0;
+
+void update_state () {
+    if (check_collisions)
 	check_collisions();
     movement_and_borders();
 }
@@ -149,13 +324,13 @@ static void update_state () {
 /* Graphics System
  */
 
-static GtkWidget * window;
-static cairo_t * cr = 0;
+GtkWidget * window;
+cairo_t * cr = 0;
 
-static int gravity_vector_countdown = 0;
-static int gravity_vector_init = 300;
+int gravity_vector_countdown = 0;
+int gravity_vector_init = 300;
 
-static void draw_gravity_vector() {
+void draw_gravity_vector() {
     if (gravity_vector_countdown != 0) {
 	cairo_new_path(cr);
 	cairo_move_to(cr, width/2, height/2);
@@ -170,10 +345,10 @@ static void draw_gravity_vector() {
     }
 }
 
-static int balls_graphics_initialized = 0;
+int balls_graphics_initialized = 0;
 const char * face_filename = 0;
 
-static void init_graphics() {
+void init_graphics() {
     if (cr)
         cairo_destroy(cr);
     cr = gdk_cairo_create(window->window);
@@ -223,7 +398,7 @@ static void init_graphics() {
     balls_graphics_initialized = 1;
 }
 
-static void destroy_graphics() {
+void destroy_graphics() {
     if (cr) {
 	cairo_destroy(cr);
 	cr = 0;
@@ -235,7 +410,7 @@ static void destroy_graphics() {
     }
 }
 
-static void draw_balls_onto_window () {
+void draw_balls_onto_window () {
     /* clear pixmap */
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, clear_alpha);
     cairo_paint(cr);
@@ -252,7 +427,7 @@ static void draw_balls_onto_window () {
     }
 }
 
-static gint resize_event (GtkWidget *widget, GdkEventConfigure * event) {
+gint resize_event (GtkWidget *widget, GdkEventConfigure * event) {
     if (width == widget->allocation.width && height == widget->allocation.height)
 	return FALSE;
 
@@ -265,7 +440,7 @@ static gint resize_event (GtkWidget *widget, GdkEventConfigure * event) {
     return TRUE;
 }
 
-static gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
+gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     if (event->type != GDK_KEY_PRESS)
 	return FALSE;
     switch(event->keyval) {
@@ -299,15 +474,15 @@ static gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     return TRUE;
 }
 
-static void show_event (GtkWidget *widget, gpointer data) {
+void show_event (GtkWidget *widget, gpointer data) {
     init_graphics();
 }
 
-static gboolean expose_event (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
+gboolean expose_event (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
     return TRUE;
 }
 
-static void destroy_window (void) {
+void destroy_window (void) {
     gtk_main_quit();
 }
 
@@ -325,11 +500,11 @@ void print_usage (const char * progname) {
 	    "\tface=<filename>\n"
 	    "\tclear=<clear-alpha>\n"
 	    "\t-v :: enables rendering timing statitstics\n"
-	    "\t-c :: disables ball-ball collisions\n",
+	    "\tcollisions=<C> :: n=no collisions, s=simple, i=index\n",
 	    progname);
 }
 
-static int rendering_statistics = 0;
+int rendering_statistics = 0;
 
 gboolean timeout (gpointer user_data) {
     guint64 start = 0, elapsed_usec;
@@ -385,9 +560,23 @@ int main (int argc, const char *argv[]) {
 	    rendering_statistics = 1;
 	    continue;
 	}
-	if (strcmp(argv[i], "-c") == 0) {
-	    collisions = 0;
-	    continue;
+	char collisions;
+	if (sscanf(argv[i], "collisions=%c", &collisions) == 1) {
+	    switch (collisions) {
+	    case 'i':
+	    case 'I':
+		check_collisions = check_collisions_with_index;
+		continue;
+	    case '0':
+	    case 'N':
+	    case 'n':
+		check_collisions = 0;
+		continue;
+	    case 's':
+	    case 'S':
+		check_collisions = check_collisions_simple;
+		continue;
+	    }
 	}
 	print_usage(argv[0]);
 	return 1;
@@ -395,6 +584,8 @@ int main (int argc, const char *argv[]) {
 
     balls = malloc(sizeof(struct ball)*n_balls);
     assert(balls);
+
+    assert(c_index_init());
     
     balls_init_state();
 
@@ -424,6 +615,7 @@ int main (int argc, const char *argv[]) {
 	printf("\n");
 
     destroy_graphics();
+    c_index_destroy();
     free(balls);
 
     return 0;
