@@ -497,28 +497,28 @@ void print_usage (const char * progname) {
 	    "\tdelta=<frame-delta-time>\n"
 	    "\tface=<filename>\n"
 	    "\tclear=<clear-alpha>\n"
-	    "\t-v :: enables rendering timing statitstics\n"
+	    "\tstats=<sample-count> :: rendering timing statitstics (0=disabled, default)\n"
 	    "\tcollisions=<C> :: n=no collisions, s=simple, i=index\n",
 	    progname);
 }
 
-int rendering_statistics = 0;
+unsigned int stats_sampling = 0;
 
 gboolean timeout (gpointer user_data) {
     guint64 start = 0, elapsed_usec;
-    if (rendering_statistics)
+    if (stats_sampling > 0)
 	start = g_get_monotonic_time ();
 
     update_state();
     draw_balls_onto_window();
 
-    if (rendering_statistics) {
+    if (stats_sampling > 0) {
 	elapsed_usec = g_get_monotonic_time () - start;
 
 	static guint64 elapsed_usec_total = 0;
 	static unsigned int samples = 0;
-	if (samples == 30) {
-	    printf("\rtime for one frame: %lu usec (avg over %u samples)  ", elapsed_usec_total / samples, samples);
+	if (samples == stats_sampling) {
+	    printf("\rframe rendering: time = %lu usec, max freq = %.2f (avg over %u samples)  ", elapsed_usec_total / samples, (1000000.0 * samples) / elapsed_usec_total, samples);
 	    fflush(stdout);
 	    samples = 0;
 	    elapsed_usec_total = 0;
@@ -554,10 +554,8 @@ int main (int argc, const char *argv[]) {
 	}
 	if (sscanf(argv[i], "clear=%lf", &clear_alpha) == 1)
 	    continue;
-	if (strcmp(argv[i], "-v") == 0) {
-	    rendering_statistics = 1;
+	if (sscanf(argv[i], "stats=%u", &stats_sampling) == 1)
 	    continue;
-	}
 	char collisions;
 	if (sscanf(argv[i], "collisions=%c", &collisions) == 1) {
 	    switch (collisions) {
@@ -609,7 +607,7 @@ int main (int argc, const char *argv[]) {
 
     gtk_main();
 
-    if (rendering_statistics)
+    if (stats_sampling > 0)
 	printf("\n");
 
     destroy_graphics();
