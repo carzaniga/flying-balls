@@ -231,7 +231,7 @@ void c_index_build() {
 struct bt_node ** c_index_stack = 0;
 unsigned int c_index_stack_top = 0;
 
-void c_index_stack_clear() {
+static void c_index_stack_clear() {
     c_index_stack_top = 0;
 }
 
@@ -264,9 +264,8 @@ void c_index_check_collisions() {
 	do {
 	    ball_collision(n->ball, b);
 	    if (c_index_must_check(n->left, b)) {
-		if (c_index_must_check(n->right, b)) {
+		if (c_index_must_check(n->right, b))
 		    c_index_stack_push(n->right);
-		}
 		n = n->left;
 	    } else if (c_index_must_check(n->right, b)) {
 		n = n->right;
