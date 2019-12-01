@@ -489,7 +489,7 @@ void print_usage (const char * progname) {
 	    "usage: %s [options...]\n"
 	    "options:\n"
 	    "\t<width>x<height>\n"
-	    "\tn=<bumber of balls>\n"
+	    "\tn=<number of balls>\n"
 	    "\tfx=<x-force>\n"
 	    "\tfy=<y-force>\n"
 	    "\tradius=<min-radius>-<max-radius>\n"
