@@ -5,7 +5,6 @@
 #include <time.h>
 
 #include <gdk/gdkkeysyms.h>
-#include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
 
 #define DEFAULT_WIDTH 800
@@ -18,8 +17,6 @@ struct ball {
 
     double v_x;
     double v_y;
-
-    guchar rgb_channels[3];
 
     cairo_surface_t * surface;
 };
@@ -323,12 +320,12 @@ void update_state () {
  */
 
 GtkWidget * window;
-cairo_t * cr = 0;
+GtkWidget * canvas;
 
 int gravity_vector_countdown = 0;
 int gravity_vector_init = 300;
 
-void draw_gravity_vector() {
+void draw_gravity_vector(cairo_t * cr) {
     if (gravity_vector_countdown != 0) {
 	cairo_new_path(cr);
 	cairo_move_to(cr, width/2, height/2);
@@ -343,16 +340,9 @@ void draw_gravity_vector() {
     }
 }
 
-int balls_graphics_initialized = 0;
 const char * face_filename = 0;
 
 void init_graphics() {
-    if (cr)
-        cairo_destroy(cr);
-    cr = gdk_cairo_create(window->window);
-    if (balls_graphics_initialized)
-	return;
-
     cairo_surface_t * face_surface;
     int face_x_offset, face_y_offset;
 
@@ -392,28 +382,20 @@ void init_graphics() {
     }
     if (face_surface)
 	cairo_surface_destroy (face_surface);
-
-    balls_graphics_initialized = 1;
 }
 
 void destroy_graphics() {
-    if (cr) {
-	cairo_destroy(cr);
-	cr = 0;
-    }
-    if (balls_graphics_initialized) {
-	for(int i = 0; i < n_balls; ++i)
-	    cairo_surface_destroy(balls[i].surface);
-	balls_graphics_initialized = 0;
-    }
+  for(int i = 0; i < n_balls; ++i)
+    cairo_surface_destroy(balls[i].surface);
 }
 
 void draw_balls_onto_window () {
     /* clear pixmap */
+    cairo_t * cr = gdk_cairo_create (canvas->window);
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, clear_alpha);
     cairo_paint(cr);
 
-    draw_gravity_vector();
+    draw_gravity_vector(cr);
 
     /* draw balls */
     for(int i = 0; i < n_balls; ++i) {
@@ -423,18 +405,16 @@ void draw_balls_onto_window () {
 	cairo_paint(cr);
 	cairo_restore(cr);
     }
+    cairo_destroy(cr);
 }
 
-gint resize_event (GtkWidget *widget, GdkEventConfigure * event) {
+gint configure_event (GtkWidget *widget, GdkEventConfigure * event) {
     if (width == widget->allocation.width && height == widget->allocation.height)
 	return FALSE;
 
     width = widget->allocation.width;
     height = widget->allocation.height;
 
-    init_graphics();
-
-    draw_balls_onto_window();
     return TRUE;
 }
 
@@ -472,11 +452,8 @@ gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     return TRUE;
 }
 
-void show_event (GtkWidget *widget, gpointer data) {
-    init_graphics();
-}
-
 gboolean expose_event (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
+    draw_balls_onto_window();
     return TRUE;
 }
 
@@ -587,23 +564,27 @@ int main (int argc, const char *argv[]) {
 
     gtk_init(0, 0);
 
-    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    assert(window);
-    gtk_window_set_default_size(GTK_WINDOW(window), w, h);
+    window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_default_size(GTK_WINDOW(window), width, height);
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
-    gtk_window_set_title(GTK_WINDOW(window), "Balls");
+    gtk_window_set_title(GTK_WINDOW(window), "Game");
 
     g_signal_connect(window, "destroy", G_CALLBACK(destroy_window), NULL);
-    g_signal_connect(window, "expose-event", G_CALLBACK(expose_event), NULL);
-    g_signal_connect(window, "configure-event", G_CALLBACK(resize_event), NULL);
-    g_signal_connect(window, "show", G_CALLBACK(show_event), NULL);
+    g_signal_connect (G_OBJECT (window), "delete-event", G_CALLBACK(destroy_window), NULL);
     g_signal_connect(window, "key-press-event", G_CALLBACK(keyboard_input), NULL);
-
     gtk_widget_set_events (window, GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK);
 
-    g_timeout_add (delta * 1000, timeout, window);
+    canvas = gtk_drawing_area_new ();
+    g_signal_connect (G_OBJECT (canvas), "expose-event", G_CALLBACK (expose_event), NULL);
+    g_signal_connect (G_OBJECT (canvas), "configure-event", G_CALLBACK(configure_event), NULL);
+
+    gtk_container_add (GTK_CONTAINER (window), canvas);
+
+    g_timeout_add (delta * 1000, timeout, canvas);
 
     gtk_widget_show_all(window);
+
+    init_graphics();
 
     gtk_main();
 
