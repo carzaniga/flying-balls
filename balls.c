@@ -356,7 +356,7 @@ void init_graphics() {
 	default:
 	    cairo_surface_destroy (face_surface);
 	    face_surface = 0;
-	    fprintf(stderr, "could not create sorfece from PNG file %s\n", face_filename);
+	    fprintf(stderr, "could not create surface from PNG file %s\n", face_filename);
 	}
     } else
 	face_surface = 0;
