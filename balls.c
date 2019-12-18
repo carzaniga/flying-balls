@@ -18,7 +18,11 @@ struct ball {
     double v_x;
     double v_y;
 
-    cairo_surface_t * surface;
+    unsigned int rotation_steps;
+    double angle;
+    double v_angle;
+
+    cairo_surface_t ** faces;
 };
 
 double delta = 0.01;	/* seconds */
@@ -31,6 +35,9 @@ unsigned int radius_max = 10;
 
 unsigned int v_max = 100;
 unsigned int v_min = 0;
+
+unsigned int v_angle_min = 0;
+unsigned int v_angle_max = 100;
 
 struct ball * balls = 0;
 unsigned int n_balls = 50;
@@ -64,6 +71,9 @@ void balls_init_state () {
 	if (rand() % 2)
 	    balls[i].v_y = -balls[i].v_y;
 	balls[i].radius = radius_min + rand() % (radius_max + 1 - radius_min);
+	unsigned int v_angle_360 = (v_angle_min + rand() % (v_angle_max + 1 - v_angle_min)) % 360;
+	balls[i].v_angle = 2*M_PI*v_angle_360/360;
+	balls[i].angle = (rand() % 360)*2*M_PI/360;
     }
 }
 
@@ -122,6 +132,9 @@ void ball_update_state (struct ball * p) {
 	    p->v_y = -p->v_y;
 	}
     } 
+    p->angle += delta*p->v_angle;
+    if (p->angle >= 2*M_PI)
+	p->angle -= 2*M_PI;
 }
 
 void movement_and_borders () {
@@ -342,51 +355,65 @@ void draw_gravity_vector(cairo_t * cr) {
 
 const char * face_filename = 0;
 
-void init_graphics() {
-    cairo_surface_t * face_surface;
-    int face_x_offset, face_y_offset;
+static const double linear_rotation_unit = 2.0;
 
-    if (face_filename) {
-	face_surface = cairo_image_surface_create_from_png (face_filename);
-	switch (cairo_surface_status(face_surface)) {
-	case CAIRO_STATUS_SUCCESS:
-	    face_x_offset = cairo_image_surface_get_width (face_surface) / 2;
-	    face_y_offset = cairo_image_surface_get_height (face_surface) / 2;
-	    break;
-	default:
-	    cairo_surface_destroy (face_surface);
-	    face_surface = 0;
-	    fprintf(stderr, "could not create surface from PNG file %s\n", face_filename);
-	}
-    } else
-	face_surface = 0;
-
-    for(int i = 0; i < n_balls; ++i) {
-	balls[i].surface = gdk_window_create_similar_surface(window->window,
-							     CAIRO_CONTENT_COLOR_ALPHA,
-							     2*balls[i].radius, 2*balls[i].radius);
-	cairo_t * ball_cr = cairo_create(balls[i].surface);
-	cairo_translate(ball_cr, balls[i].radius, balls[i].radius);
-	cairo_arc(ball_cr, 0.0, 0.0, balls[i].radius, 0, 2 * M_PI);
+void init_ball_face(struct ball * b, cairo_surface_t * face) {
+    if (face) {
+	b->rotation_steps = 2*M_PI * b->radius / linear_rotation_unit;
+    } else {
+	b->rotation_steps = 1;
+    }
+    b->faces = malloc(sizeof(cairo_surface_t *)*b->rotation_steps);
+    assert(b->faces);
+    for (int i = 0; i < b->rotation_steps; ++i) {
+	b->faces[i] = gdk_window_create_similar_surface(window->window,
+							CAIRO_CONTENT_COLOR_ALPHA,
+							2*b->radius, 2*b->radius);
+	assert(b->faces[i]);
+	cairo_t * ball_cr = cairo_create(b->faces[i]);
+	cairo_translate(ball_cr, b->radius, b->radius);
+	cairo_arc(ball_cr, 0.0, 0.0, b->radius, 0, 2 * M_PI);
 	cairo_clip(ball_cr);
 
 	cairo_set_source_rgb(ball_cr, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255);
 	cairo_paint(ball_cr);
-	if (face_surface) {
-	    cairo_scale (ball_cr, 1.0 * balls[i].radius / face_x_offset, 1.0 * balls[i].radius / face_y_offset);
-	    cairo_set_source_surface(ball_cr, face_surface, -face_x_offset, -face_y_offset);
+	if (face) {
+	    int face_x_offset = cairo_image_surface_get_width (face) / 2;
+	    int face_y_offset = cairo_image_surface_get_height (face) / 2;
+	    cairo_rotate(ball_cr, i*2*M_PI/b->rotation_steps);
+	    cairo_scale (ball_cr, 1.0 * b->radius / face_x_offset, 1.0 * b->radius / face_y_offset);
+	    cairo_set_source_surface(ball_cr, face, -face_x_offset, -face_y_offset);
 	    cairo_paint(ball_cr);
 	}
-	cairo_surface_flush(balls[i].surface);
+	cairo_surface_flush(b->faces[i]);
 	cairo_destroy(ball_cr);
     }
+}
+
+void init_graphics() {
+    cairo_surface_t * face_surface = 0;
+
+    if (face_filename) {
+	face_surface = cairo_image_surface_create_from_png (face_filename);
+	if (cairo_surface_status(face_surface) != CAIRO_STATUS_SUCCESS) {
+	    cairo_surface_destroy (face_surface);
+	    face_surface = 0;
+	    fprintf(stderr, "could not create surface from PNG file %s\n", face_filename);
+	}
+    }
+    for(int i = 0; i < n_balls; ++i)
+	init_ball_face(&(balls[i]), face_surface);
+
     if (face_surface)
 	cairo_surface_destroy (face_surface);
 }
 
 void destroy_graphics() {
-  for(int i = 0; i < n_balls; ++i)
-    cairo_surface_destroy(balls[i].surface);
+    for(int i = 0; i < n_balls; ++i) {
+	for (int j = 0; j < balls[i].rotation_steps; ++i)
+	    cairo_surface_destroy(balls[i].faces[j]);
+	free(balls[i].faces);
+    }
 }
 
 void draw_balls_onto_window () {
@@ -401,7 +428,15 @@ void draw_balls_onto_window () {
     for(int i = 0; i < n_balls; ++i) {
 	cairo_save(cr);
 	cairo_translate(cr, balls[i].x - balls[i].radius, balls[i].y - balls[i].radius);
-	cairo_set_source_surface(cr, balls[i].surface, 0, 0);
+	unsigned int face_id;
+	if (balls[i].rotation_steps == 1)
+	    face_id = 0;
+	else {
+	    face_id = balls[i].rotation_steps*balls[i].angle/M_PI;
+	    if (face_id >= balls[i].rotation_steps)
+		face_id %= balls[i].rotation_steps;
+	}
+	cairo_set_source_surface(cr, balls[i].faces[face_id], 0, 0);
 	cairo_paint(cr);
 	cairo_restore(cr);
     }
