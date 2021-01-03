@@ -354,11 +354,12 @@ void draw_gravity_vector(cairo_t * cr) {
 }
 
 const char * face_filename = 0;
+int face_rotation = 0;
 
 static const double linear_rotation_unit = 2.0;
 
-void init_ball_face(struct ball * b, cairo_surface_t * face) {
-    if (face) {
+void init_ball_face(struct ball * b, cairo_surface_t * face, int rotation) {
+    if (face && rotation) {
 	b->rotation_steps = 2*M_PI * b->radius / linear_rotation_unit;
     } else {
 	b->rotation_steps = 1;
@@ -402,7 +403,7 @@ void init_graphics() {
 	}
     }
     for(int i = 0; i < n_balls; ++i)
-	init_ball_face(&(balls[i]), face_surface);
+	init_ball_face(&(balls[i]), face_surface, face_rotation);
 
     if (face_surface)
 	cairo_surface_destroy (face_surface);
@@ -510,7 +511,8 @@ void print_usage (const char * progname) {
 	    "\tface=<filename>\n"
 	    "\tclear=<clear-alpha>\n"
 	    "\tstats=<sample-count> :: rendering timing statitstics (0=disabled, default)\n"
-	    "\tcollisions=<C> :: n=no collisions, s=simple, i=index\n",
+	    "\tcollisions=<C> :: n=no collisions, s=simple, i=index\n"
+	    "\t-r :: activate face rotation\n",
 	    progname);
 }
 
@@ -585,6 +587,10 @@ int main (int argc, const char *argv[]) {
 		check_collisions = check_collisions_simple;
 		continue;
 	    }
+	}
+	if (strcmp(argv[i], "-r") ==  0) {
+	    face_rotation = 1;
+	    continue;
 	}
 	print_usage(argv[0]);
 	return 1;
