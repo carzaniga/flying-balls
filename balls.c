@@ -376,14 +376,15 @@ void init_ball_face(struct ball * b, cairo_surface_t * face, int rotation) {
 	cairo_arc(ball_cr, 0.0, 0.0, b->radius, 0, 2 * M_PI);
 	cairo_clip(ball_cr);
 
-	cairo_set_source_rgb(ball_cr, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255);
-	cairo_paint(ball_cr);
 	if (face) {
 	    int face_x_offset = cairo_image_surface_get_width (face) / 2;
 	    int face_y_offset = cairo_image_surface_get_height (face) / 2;
 	    cairo_rotate(ball_cr, i*2*M_PI/b->rotation_steps);
 	    cairo_scale (ball_cr, 1.0 * b->radius / face_x_offset, 1.0 * b->radius / face_y_offset);
 	    cairo_set_source_surface(ball_cr, face, -face_x_offset, -face_y_offset);
+	    cairo_paint(ball_cr);
+	} else {
+	    cairo_set_source_rgb(ball_cr, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255);
 	    cairo_paint(ball_cr);
 	}
 	cairo_surface_flush(b->faces[i]);
