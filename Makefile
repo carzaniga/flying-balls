@@ -1,11 +1,11 @@
-GTK_PACKAGES=gdk-pixbuf-2.0 gtk+-2.0
+GTK_PACKAGES=gdk-pixbuf-2.0 gtk+-3.0
 GTK_CFLAGS=$(shell pkg-config --cflags $(GTK_PACKAGES))
 GTK_LIBS=$(shell pkg-config --libs $(GTK_PACKAGES))
 
 # PROFILING_CFLAGS=-pg
 CFLAGS=-Wall -g -O2 $(PROFILING_CFLAGS) $(GTK_CFLAGS)
 
-LIBS=$(GTK_LIBS)
+LIBS=$(GTK_LIBS) -lm
 
 PROGS=balls
 

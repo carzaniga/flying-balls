@@ -10,6 +10,8 @@
 #define DEFAULT_WIDTH 800
 #define DEFAULT_HEIGHT 800
 
+struct ball_face;
+
 struct ball {
     double x;
     double y;
@@ -18,11 +20,10 @@ struct ball {
     double v_x;
     double v_y;
 
-    unsigned int rotation_steps;
     double angle;
     double v_angle;
 
-    cairo_surface_t ** faces;
+    struct ball_face * face;
 };
 
 double delta = 0.01;	/* seconds */
@@ -102,6 +103,66 @@ void ball_collision (struct ball * p, struct ball * q) {
     }
 }
 
+#if 0
+static void tangential_friction1(double u, double p, double r, double * v, double * q) {
+    static const double a = 0.0;
+
+    /*
+     *                  2   2      2                 2   2  2
+     *     sqrt((6 - 2 a ) u  + 4 a  p r u + (3 - 2 a ) p  r ) + a u - a p r
+     * v = -----------------------------------------------------------------
+     *                                     3
+     *
+     *                  2   2      2                 2   2  2
+     *     sqrt((6 - 2 a ) u  + 4 a  p r u + (3 - 2 a ) p  r ) - 2 a u + 2 a p r
+     * q = ---------------------------------------------------------------------
+     *                                      3 r
+     */
+    double a2 = a*a;
+    double u2 = u*u;
+    double p2 = p*p;
+    double r2 = r*r;
+    double sr = sqrt((6 - 2*a2)*u2 + 4*a2*p*r*u + (3 - 2*a2)*p2*r2);
+    *v = (sr + a*u - a*p*r)/3;
+    *q = (sr - 2*a*u + 2*a*p*r)/(3*r);
+}
+
+static void tangential_friction2(double u, double p, double r, double * v, double * q) {
+    static const double a = 1.0;
+
+    /*
+     *                  2   2      2                 2   2  2
+     *     sqrt((6 - 2 a ) u  + 4 a  p r u + (3 - 2 a ) p  r ) + a u + a p r
+     * v = -----------------------------------------------------------------
+     *                                     3
+     *
+     *                  2   2      2                 2   2  2
+     *     sqrt((6 - 2 a ) u  + 4 a  p r u + (3 - 2 a ) p  r ) - 2 a u - 2 a p r
+     * q = ---------------------------------------------------------------------
+     *                                      3 r
+     */
+    double a2 = a*a;
+    double u2 = u*u;
+    double p2 = p*p;
+    double r2 = r*r;
+    double sr = sqrt((6 - 2*a2)*u2 + 4*a2*p*r*u + (3 - 2*a2)*p2*r2);
+    *v = (sr + a*u + a*p*r)/3;
+    *q = (sr - 2*a*u - 2*a*p*r)/(3*r);
+}
+#endif
+static void tangential_friction3(double u, double p, double r, double * v, double * q) {
+    static const double a = 0.5;
+    double w = u - p*r;
+    *v = u - a*w;
+#if 0
+    *q = sqrt(p*p*r*r - 2*a*a*w + 4*u*a*w)/r;
+    if (w > 0)
+	*q = -*q;
+#else
+    *q = (*v)/r;
+#endif
+}
+
 void ball_update_state (struct ball * p) {
     p->x += delta*p->v_x + delta*delta*g_x/2.0;
     p->v_x += delta*g_x;
@@ -109,32 +170,52 @@ void ball_update_state (struct ball * p) {
     p->y += delta*p->v_y + delta*delta*g_y/2.0;
     p->v_y += delta*g_y;
 
-    if (p->x + p->radius > width) {
+    if (p->x + p->radius > width) { /* right wall */
 	if (p->v_x > 0) {
 	    p->x -= p->x + p->radius - width;
 	    p->v_x = -p->v_x;
+	    /* tangential friction */
+#if 0
+	    tangential_friction(p->v_y, -p->v_angle, p->radius, &(p->v_y), &(p->v_angle));
+	    p->v_angle = -p->v_angle;
+#endif
 	}
-    } else if (p->x < p->radius) {
+    } else if (p->x < p->radius) { /* left wall */
 	if (p->v_x < 0) {
 	    p->x += p->radius - p->x;
 	    p->v_x = -p->v_x;
+	    /* tangential friction */
+#if 0
+	    tangential_friction(p->v_y, p->v_angle, p->radius, &(p->v_y), &(p->v_angle));
+#endif
 	}
     } 
 
-    if (p->y + p->radius > height) {
+    if (p->y + p->radius > height) { /* bottom wall */
 	if (p->v_y > 0) {
 	    p->y -= p->y + p->radius - height;
 	    p->v_y = -p->v_y;
+	    /* tangential friction */
+#if 1
+	    tangential_friction3(p->v_x, p->v_angle, p->radius, &(p->v_x), &(p->v_angle));
+#endif
 	}
-    } else if (p->y < p->radius) {
+    } else if (p->y < p->radius) { /* top wall */
 	if (p->v_y < 0) {
 	    p->y += p->radius - p->y;
 	    p->v_y = -p->v_y;
+	    /* tangential friction */
+#if 0
+	    tangential_friction(p->v_x, -p->v_angle, p->radius, &(p->v_x), &(p->v_angle));
+	    p->v_angle = -p->v_angle;
+#endif
 	}
     } 
     p->angle += delta*p->v_angle;
-    if (p->angle >= 2*M_PI)
+    while (p->angle >= 2*M_PI)
 	p->angle -= 2*M_PI;
+    while (p->angle < 0)
+	p->angle += 2*M_PI;
 }
 
 void movement_and_borders () {
@@ -358,38 +439,53 @@ int face_rotation = 0;
 
 static const double linear_rotation_unit = 2.0;
 
-void init_ball_face(struct ball * b, cairo_surface_t * face, int rotation) {
+unsigned int faces_count;
+struct ball_face ** faces;
+
+struct ball_face {
+    unsigned int rotations;
+    cairo_surface_t ** c_faces;
+};
+
+struct ball_face * new_ball_face(unsigned int radius, cairo_surface_t * face, int rotation) {
+    struct ball_face * f = malloc(sizeof(struct ball_face));
+    if (!f)
+	return 0;
     if (face && rotation) {
-	b->rotation_steps = 2*M_PI * b->radius / linear_rotation_unit;
+	f->rotations = 2*M_PI * radius / linear_rotation_unit;
     } else {
-	b->rotation_steps = 1;
+	f->rotations = 1;
     }
-    b->faces = malloc(sizeof(cairo_surface_t *)*b->rotation_steps);
-    assert(b->faces);
-    for (int i = 0; i < b->rotation_steps; ++i) {
-	b->faces[i] = gdk_window_create_similar_surface(window->window,
-							CAIRO_CONTENT_COLOR_ALPHA,
-							2*b->radius, 2*b->radius);
-	assert(b->faces[i]);
-	cairo_t * ball_cr = cairo_create(b->faces[i]);
-	cairo_translate(ball_cr, b->radius, b->radius);
-	cairo_arc(ball_cr, 0.0, 0.0, b->radius, 0, 2 * M_PI);
+    f->c_faces = malloc(sizeof(cairo_surface_t *)*f->rotations);
+    if (!f->c_faces) {
+	free(f);
+	return 0;
+    }
+    for (int i = 0; i < f->rotations; ++i) {
+	f->c_faces[i] = gdk_window_create_similar_surface(gtk_widget_get_window(window),
+							  CAIRO_CONTENT_COLOR_ALPHA,
+							  2*radius, 2*radius);
+	assert(f->c_faces[i]);
+	cairo_t * ball_cr = cairo_create(f->c_faces[i]);
+	cairo_translate(ball_cr, radius, radius);
+	cairo_arc(ball_cr, 0.0, 0.0, radius, 0, 2 * M_PI);
 	cairo_clip(ball_cr);
 
 	if (face) {
 	    int face_x_offset = cairo_image_surface_get_width (face) / 2;
 	    int face_y_offset = cairo_image_surface_get_height (face) / 2;
-	    cairo_rotate(ball_cr, i*2*M_PI/b->rotation_steps);
-	    cairo_scale (ball_cr, 1.0 * b->radius / face_x_offset, 1.0 * b->radius / face_y_offset);
+	    cairo_rotate(ball_cr, i*2*M_PI/f->rotations);
+	    cairo_scale (ball_cr, 1.0 * radius / face_x_offset, 1.0 * radius / face_y_offset);
 	    cairo_set_source_surface(ball_cr, face, -face_x_offset, -face_y_offset);
 	    cairo_paint(ball_cr);
 	} else {
 	    cairo_set_source_rgb(ball_cr, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255);
 	    cairo_paint(ball_cr);
 	}
-	cairo_surface_flush(b->faces[i]);
+	cairo_surface_flush(f->c_faces[i]);
 	cairo_destroy(ball_cr);
     }
+    return f;
 }
 
 void init_graphics() {
@@ -403,54 +499,84 @@ void init_graphics() {
 	    fprintf(stderr, "could not create surface from PNG file %s\n", face_filename);
 	}
     }
-    for(int i = 0; i < n_balls; ++i)
-	init_ball_face(&(balls[i]), face_surface, face_rotation);
-
-    if (face_surface)
+    if (face_surface) {
+	faces_count = radius_max + 1 - radius_min;
+	faces = malloc(sizeof(struct ball_face *)*faces_count);
+	for (unsigned int i = 0; i < faces_count; ++i)
+	    faces[i] = 0;
+	for(struct ball * b = balls; b != balls + n_balls; ++b) {
+	    unsigned int r_idx = b->radius - radius_min;
+	    if (!faces[r_idx])
+		faces[r_idx] = new_ball_face(b->radius, face_surface, face_rotation);
+	    b->face = faces[r_idx];
+	}
 	cairo_surface_destroy (face_surface);
+    } else {
+	faces_count = n_balls;
+	faces = malloc(sizeof(struct ball_face *)*faces_count);
+	for (unsigned int i = 0; i < n_balls; ++i)
+	    balls[i].face = faces[i] = new_ball_face(balls[i].radius, 0, face_rotation);
+    }
 }
 
 void destroy_graphics() {
-    for(int i = 0; i < n_balls; ++i) {
-	for (int j = 0; j < balls[i].rotation_steps; ++i)
-	    cairo_surface_destroy(balls[i].faces[j]);
-	free(balls[i].faces);
+    if (!faces)
+	return;
+    for (int i = 0; i < faces_count; ++i) {
+	if (faces[i]) {
+	    if (faces[i]->c_faces) {
+		for (unsigned int j = 0; j < faces[i]->rotations; ++j)
+		    cairo_surface_destroy(faces[i]->c_faces[j]);
+		free(faces[i]->c_faces);
+	    }
+	    free(faces[i]);
+	}
     }
+    free(faces);
+    faces = 0;
+    faces_count = 0;
 }
 
 void draw_balls_onto_window () {
     /* clear pixmap */
-    cairo_t * cr = gdk_cairo_create (canvas->window);
+    GdkWindow * window = gtk_widget_get_window(canvas);
+    cairo_region_t * c_region = cairo_region_create();
+    GdkDrawingContext * d_context = gdk_window_begin_draw_frame (window, c_region);
+
+    cairo_t * cr = gdk_drawing_context_get_cairo_context (d_context);
+
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, clear_alpha);
     cairo_paint(cr);
 
     draw_gravity_vector(cr);
 
     /* draw balls */
-    for(int i = 0; i < n_balls; ++i) {
+    for(const struct ball * b = balls; b != balls + n_balls; ++b) {
 	cairo_save(cr);
-	cairo_translate(cr, balls[i].x - balls[i].radius, balls[i].y - balls[i].radius);
+	cairo_translate(cr, b->x - b->radius, b->y - b->radius);
 	unsigned int face_id;
-	if (balls[i].rotation_steps == 1)
+	if (b->face->rotations == 1)
 	    face_id = 0;
 	else {
-	    face_id = balls[i].rotation_steps*balls[i].angle/M_PI;
-	    if (face_id >= balls[i].rotation_steps)
-		face_id %= balls[i].rotation_steps;
+	    face_id = b->face->rotations*b->angle/(2*M_PI);
+	    assert(face_id < b->face->rotations);
+	    if (face_id >= b->face->rotations)
+		face_id %= b->face->rotations;
 	}
-	cairo_set_source_surface(cr, balls[i].faces[face_id], 0, 0);
+	cairo_set_source_surface(cr, b->face->c_faces[face_id], 0, 0);
 	cairo_paint(cr);
 	cairo_restore(cr);
     }
-    cairo_destroy(cr);
+    gdk_window_end_draw_frame(window, d_context);
+    cairo_region_destroy(c_region);
 }
 
 gint configure_event (GtkWidget *widget, GdkEventConfigure * event) {
-    if (width == widget->allocation.width && height == widget->allocation.height)
+    if (width == gtk_widget_get_allocated_width(widget) && height == gtk_widget_get_allocated_height(widget))
 	return FALSE;
 
-    width = widget->allocation.width;
-    height = widget->allocation.height;
+    width = gtk_widget_get_allocated_width(widget);
+    height = gtk_widget_get_allocated_height(widget);
 
     return TRUE;
 }
