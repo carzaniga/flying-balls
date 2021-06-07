@@ -465,6 +465,10 @@ struct ball_face {
     cairo_surface_t ** c_faces;
 };
 
+static double random_color_component() {
+    return 1.0*(rand() % 200 + 56)/255;
+};
+
 struct ball_face * new_ball_face(unsigned int radius, cairo_surface_t * face, int rotation) {
     struct ball_face * f = malloc(sizeof(struct ball_face));
     if (!f)
@@ -497,8 +501,17 @@ struct ball_face * new_ball_face(unsigned int radius, cairo_surface_t * face, in
 	    cairo_set_source_surface(ball_cr, face, -face_x_offset, -face_y_offset);
 	    cairo_paint(ball_cr);
 	} else {
-	    cairo_set_source_rgb(ball_cr, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255, 1.0*(rand() % 256)/255);
-	    cairo_paint(ball_cr);
+	    cairo_pattern_t *pat;
+	    pat = cairo_pattern_create_radial (-0.2*radius, -0.2*radius, 0.2*radius,
+					       -0.2*radius, -0.2*radius, 1.2*radius);
+	    double col_r = random_color_component();
+	    double col_g = random_color_component();
+	    double col_b = random_color_component();
+	    cairo_pattern_add_color_stop_rgba (pat, 0, col_r, col_g, col_b, 1);
+	    cairo_pattern_add_color_stop_rgba (pat, 1, col_r/3, col_g/3, col_b/3, 1);
+	    cairo_set_source (ball_cr, pat);
+	    cairo_arc (ball_cr, 0.0, 0.0, radius, 0, 2 * M_PI);
+	    cairo_fill (ball_cr);
 	}
 	cairo_surface_flush(f->c_faces[i]);
 	cairo_destroy(ball_cr);
