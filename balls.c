@@ -149,19 +149,24 @@ static void tangential_friction2(double u, double p, double r, double * v, doubl
     *v = (sr + a*u + a*p*r)/3;
     *q = (sr - 2*a*u - 2*a*p*r)/(3*r);
 }
-#endif
-static void tangential_friction3(double u, double p, double r, double * v, double * q) {
-    static const double a = 0.5;
-    double w = u - p*r;
-    *v = u - a*w;
-#if 0
-    *q = sqrt(p*p*r*r - 2*a*a*w + 4*u*a*w)/r;
-    if (w > 0)
-	*q = -*q;
-#else
-    *q = (*v)/r;
-#endif
+
+static void tangential_friction3(double u, double p, double r, double * v_ptr, double * q_ptr) {
+    static const double a = 0.9;
+    double v, q;
+    v = (1-a)*u + a*p*r;
+    /*                    2   2       2                        2   2  2
+     *     sqrt((4 a - 2 a ) u  + (4 a  - 4 a) p r u + (1 - 2 a ) p  r )
+     * q = -------------------------------------------------------------
+     *                                   r
+     */
+    q = sqrt(2*a*(2 - a)*u*u + 4*a*(a - 1)*p*r*u + (1 - 2*a*a)*p*p*r*r)/r;
+    if (p*r > v)
+	q = -q;
+
+    *v_ptr = v;
+    *q_ptr = q;
 }
+#endif
 
 void ball_update_state (struct ball * p) {
     p->x += delta*p->v_x + delta*delta*g_x/2.0;
@@ -174,18 +179,17 @@ void ball_update_state (struct ball * p) {
 	if (p->v_x > 0) {
 	    p->x -= p->x + p->radius - width;
 	    p->v_x = -p->v_x;
-	    /* tangential friction */
 #if 0
+	    /* tangential friction */
 	    tangential_friction(p->v_y, -p->v_angle, p->radius, &(p->v_y), &(p->v_angle));
-	    p->v_angle = -p->v_angle;
 #endif
 	}
     } else if (p->x < p->radius) { /* left wall */
 	if (p->v_x < 0) {
 	    p->x += p->radius - p->x;
 	    p->v_x = -p->v_x;
-	    /* tangential friction */
 #if 0
+	    /* tangential friction */
 	    tangential_friction(p->v_y, p->v_angle, p->radius, &(p->v_y), &(p->v_angle));
 #endif
 	}
@@ -195,8 +199,8 @@ void ball_update_state (struct ball * p) {
 	if (p->v_y > 0) {
 	    p->y -= p->y + p->radius - height;
 	    p->v_y = -p->v_y;
+#if 0
 	    /* tangential friction */
-#if 1
 	    tangential_friction3(p->v_x, p->v_angle, p->radius, &(p->v_x), &(p->v_angle));
 #endif
 	}
@@ -204,8 +208,8 @@ void ball_update_state (struct ball * p) {
 	if (p->v_y < 0) {
 	    p->y += p->radius - p->y;
 	    p->v_y = -p->v_y;
-	    /* tangential friction */
 #if 0
+	    /* tangential friction */
 	    tangential_friction(p->v_x, -p->v_angle, p->radius, &(p->v_x), &(p->v_angle));
 	    p->v_angle = -p->v_angle;
 #endif
@@ -216,6 +220,20 @@ void ball_update_state (struct ball * p) {
 	p->angle -= 2*M_PI;
     while (p->angle < 0)
 	p->angle += 2*M_PI;
+}
+
+void reposition_within_borders () {
+    for(int i = 0; i < n_balls; ++i) {
+	struct ball * p = balls + i;
+	if (p->x < p->radius)
+	    p->x = p->radius;
+	else if (p->x + p->radius > width)
+	    p->x = width - p->radius;
+	if (p->y < p->radius)
+	    p->y = p->radius;
+	else if (p->y + p->radius > height)
+	    p->y = height - p->radius;
+    }
 }
 
 void movement_and_borders () {
@@ -578,6 +596,7 @@ gint configure_event (GtkWidget *widget, GdkEventConfigure * event) {
     width = gtk_widget_get_allocated_width(widget);
     height = gtk_widget_get_allocated_height(widget);
 
+    reposition_within_borders();
     return TRUE;
 }
 
@@ -743,7 +762,7 @@ int main (int argc, const char *argv[]) {
     gtk_widget_set_events (window, GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK);
 
     canvas = gtk_drawing_area_new ();
-    g_signal_connect (G_OBJECT (canvas), "expose-event", G_CALLBACK (expose_event), NULL);
+
     g_signal_connect (G_OBJECT (canvas), "configure-event", G_CALLBACK(configure_event), NULL);
 
     gtk_container_add (GTK_CONTAINER (window), canvas);
