@@ -503,7 +503,7 @@ struct ball_face * new_ball_face(unsigned int radius, cairo_surface_t * face, in
 	} else {
 	    cairo_pattern_t *pat;
 	    pat = cairo_pattern_create_radial (-0.2*radius, -0.2*radius, 0.2*radius,
-					       -0.2*radius, -0.2*radius, 1.2*radius);
+					       -0.2*radius, -0.2*radius, 1.3*radius);
 	    double col_r = random_color_component();
 	    double col_g = random_color_component();
 	    double col_b = random_color_component();
