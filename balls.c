@@ -666,7 +666,7 @@ void print_usage (const char * progname) {
 	    "\tfy=<y-force>\n"
 	    "\tradius=<min-radius>-<max-radius>\n"
 	    "\tv=<min-velocity>-<max-velocity>\n"
-	    "\tdelta=<frame-delta-time>\n"
+	    "\tdelta=<frame-delta-time> (in seconds)\n"
 	    "\tface=<filename>\n"
 	    "\tclear=<clear-alpha>\n"
 	    "\tstats=<sample-count> :: rendering timing statitstics (0=disabled, default)\n"
@@ -678,26 +678,30 @@ void print_usage (const char * progname) {
 unsigned int stats_sampling = 0;
 
 gboolean timeout (gpointer user_data) {
-    guint64 start = 0, elapsed_usec;
-    if (stats_sampling > 0)
-	start = g_get_monotonic_time ();
-
-    update_state();
-    draw_balls_onto_window();
-
     if (stats_sampling > 0) {
-	elapsed_usec = g_get_monotonic_time () - start;
-
 	static guint64 elapsed_usec_total = 0;
+	static guint64 update_usec_total = 0;
 	static unsigned int samples = 0;
+	guint64 start = g_get_monotonic_time ();
+	update_state();
+	guint64 update_usec = g_get_monotonic_time () - start;
+	draw_balls_onto_window();
+	guint64 elapsed_usec = g_get_monotonic_time () - start;
+	++samples;
+	elapsed_usec_total += elapsed_usec;
+	update_usec_total += update_usec;
 	if (samples == stats_sampling) {
-	    printf("\rframe rendering: time = %lu usec, max freq = %.2f (avg over %u samples)  ", elapsed_usec_total / samples, (1000000.0 * samples) / elapsed_usec_total, samples);
+	    printf("\rupdate = %lu us, total = %lu us, load = %.0f%% (avg over %u samples)  ",
+		   update_usec_total / samples, elapsed_usec_total / samples,
+		   (100.0*elapsed_usec_total / (1000000.0*samples*delta)), samples);
 	    fflush(stdout);
 	    samples = 0;
 	    elapsed_usec_total = 0;
+	    update_usec_total = 0;
 	}
-	++samples;
-	elapsed_usec_total += elapsed_usec;
+    } else {
+	update_state();
+	draw_balls_onto_window();
     }
     return TRUE;
 }
