@@ -647,11 +647,6 @@ gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     return TRUE;
 }
 
-gboolean expose_event (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
-    draw_balls_onto_window();
-    return TRUE;
-}
-
 void destroy_window (void) {
     gtk_main_quit();
 }
@@ -675,34 +670,44 @@ void print_usage (const char * progname) {
 	    progname);
 }
 
-unsigned int stats_sampling = 0;
+static unsigned int stats_sampling = 0;
+static guint64 stats_update_usec = 0;
+static unsigned int stats_update_samples = 0;
+static guint64 stats_draw_usec = 0;
+static unsigned int stats_draw_samples = 0;
+
+gboolean draw_event (GtkWidget *widget, cairo_t *cr, gpointer data) {
+    if (stats_sampling > 0) {
+	guint64 start = g_get_monotonic_time ();
+	draw_balls_onto_window();
+	stats_draw_usec += g_get_monotonic_time () - start;
+	++stats_draw_samples;
+    } else
+	draw_balls_onto_window();
+    return FALSE;
+}
 
 gboolean timeout (gpointer user_data) {
     if (stats_sampling > 0) {
-	static guint64 elapsed_usec_total = 0;
-	static guint64 update_usec_total = 0;
-	static unsigned int samples = 0;
 	guint64 start = g_get_monotonic_time ();
 	update_state();
-	guint64 update_usec = g_get_monotonic_time () - start;
-	draw_balls_onto_window();
-	guint64 elapsed_usec = g_get_monotonic_time () - start;
-	++samples;
-	elapsed_usec_total += elapsed_usec;
-	update_usec_total += update_usec;
-	if (samples == stats_sampling) {
-	    printf("\rupdate = %lu us, total = %lu us, load = %.0f%% (avg over %u samples)  ",
-		   update_usec_total / samples, elapsed_usec_total / samples,
-		   (100.0*elapsed_usec_total / (1000000.0*samples*delta)), samples);
+	stats_update_usec += g_get_monotonic_time () - start;
+	if (++stats_update_samples == stats_sampling) {
+	    float uavg = 1.0*stats_update_usec / stats_update_samples;
+	    float davg = 1.0*stats_draw_usec / stats_draw_samples;
+	    printf("\rupdate = %.0f us, draw = %.0f us, load = %.0f%% (%u update, %u draw)  ",
+		   uavg, davg, (uavg+davg)/(10000.0*delta),
+		   stats_update_samples, stats_draw_samples);
 	    fflush(stdout);
-	    samples = 0;
-	    elapsed_usec_total = 0;
-	    update_usec_total = 0;
+	    stats_update_usec = 0;
+	    stats_update_samples = 0;
+	    stats_draw_usec = 0;
+	    stats_draw_samples = 0;
 	}
     } else {
 	update_state();
-	draw_balls_onto_window();
     }
+    gtk_widget_queue_draw(canvas);
     return TRUE;
 }
 
@@ -781,7 +786,7 @@ int main (int argc, const char *argv[]) {
     canvas = gtk_drawing_area_new ();
 
     g_signal_connect (G_OBJECT (canvas), "configure-event", G_CALLBACK(configure_event), NULL);
-
+    g_signal_connect (G_OBJECT (canvas), "draw", G_CALLBACK (draw_event), NULL);
     gtk_container_add (GTK_CONTAINER (window), canvas);
 
     g_timeout_add (delta * 1000, timeout, canvas);
