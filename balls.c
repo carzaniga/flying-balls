@@ -387,6 +387,39 @@ gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     return TRUE;
 }
 
+gboolean mouse_scroll (GtkWidget *widget, GdkEvent *event, gpointer user_data) {
+    if (event->type == GDK_SCROLL) {
+        GdkEventScroll * e = (GdkEventScroll*) event;
+	switch (e->direction) {
+	case GDK_SCROLL_SMOOTH: {
+	    double dx, dy;
+	    gdk_event_get_scroll_deltas (event, &dx, &dy);
+	    g_x -= 10*dx;
+	    g_y -= 10*dy;
+	    gravity_vector_countdown = gravity_vector_init;
+	    break;
+	}
+	case GDK_SCROLL_LEFT:
+	    g_x -= 10;
+	    gravity_vector_countdown = gravity_vector_init;
+	    break;
+	case GDK_SCROLL_RIGHT:
+	    g_x += 10;
+	    gravity_vector_countdown = gravity_vector_init;
+	    break;
+	case GDK_SCROLL_UP:
+	    g_y += 10;
+	    gravity_vector_countdown = gravity_vector_init;
+	    break;
+	case GDK_SCROLL_DOWN:
+	    g_y -= 10;
+	    gravity_vector_countdown = gravity_vector_init;
+	    break;
+	}
+    }
+    return TRUE;
+}
+
 void destroy_window (void) {
     gtk_main_quit();
 }
@@ -520,13 +553,16 @@ int main (int argc, const char *argv[]) {
 
     g_signal_connect(window, "destroy", G_CALLBACK(destroy_window), NULL);
     g_signal_connect (G_OBJECT (window), "delete-event", G_CALLBACK(destroy_window), NULL);
-    g_signal_connect(window, "key-press-event", G_CALLBACK(keyboard_input), NULL);
-    gtk_widget_set_events (window, GDK_EXPOSURE_MASK | GDK_BUTTON_PRESS_MASK | GDK_KEY_PRESS_MASK);
+    g_signal_connect(G_OBJECT (window), "key-press-event", G_CALLBACK(keyboard_input), NULL);
+    gtk_widget_set_events (window, GDK_EXPOSURE_MASK | GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK | GDK_KEY_PRESS_MASK);
 
     canvas = gtk_drawing_area_new ();
 
     g_signal_connect (G_OBJECT (canvas), "configure-event", G_CALLBACK(configure_event), NULL);
     g_signal_connect (G_OBJECT (canvas), "draw", G_CALLBACK (draw_event), NULL);
+    g_signal_connect (G_OBJECT (canvas), "scroll-event",G_CALLBACK(mouse_scroll), NULL);
+    gtk_widget_set_events (canvas, GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK);
+
     gtk_container_add (GTK_CONTAINER (window), canvas);
 
     g_timeout_add (delta * 1000, timeout, canvas);
