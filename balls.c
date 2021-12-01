@@ -10,21 +10,8 @@
 #define DEFAULT_WIDTH 800
 #define DEFAULT_HEIGHT 800
 
-struct ball_face;
-
-struct ball {
-    double x;
-    double y;
-    unsigned int radius;
-
-    double v_x;
-    double v_y;
-
-    double angle;
-    double v_angle;
-
-    struct ball_face * face;
-};
+#include "balls.h"
+#include "c_index.h"
 
 double delta = 0.01;	/* seconds */
 
@@ -78,7 +65,7 @@ void balls_init_state () {
     }
 }
 
-void ball_collision (struct ball * p, struct ball * q) {
+void ball_elastic_collision (struct ball * p, struct ball * q) {
     double dx = q->x - p->x;
     double dy = q->y - p->y;
     double d2 = dx*dx + dy*dy;
@@ -103,71 +90,6 @@ void ball_collision (struct ball * p, struct ball * q) {
     }
 }
 
-#if 0
-static void tangential_friction1(double u, double p, double r, double * v, double * q) {
-    static const double a = 0.0;
-
-    /*
-     *                  2   2      2                 2   2  2
-     *     sqrt((6 - 2 a ) u  + 4 a  p r u + (3 - 2 a ) p  r ) + a u - a p r
-     * v = -----------------------------------------------------------------
-     *                                     3
-     *
-     *                  2   2      2                 2   2  2
-     *     sqrt((6 - 2 a ) u  + 4 a  p r u + (3 - 2 a ) p  r ) - 2 a u + 2 a p r
-     * q = ---------------------------------------------------------------------
-     *                                      3 r
-     */
-    double a2 = a*a;
-    double u2 = u*u;
-    double p2 = p*p;
-    double r2 = r*r;
-    double sr = sqrt((6 - 2*a2)*u2 + 4*a2*p*r*u + (3 - 2*a2)*p2*r2);
-    *v = (sr + a*u - a*p*r)/3;
-    *q = (sr - 2*a*u + 2*a*p*r)/(3*r);
-}
-
-static void tangential_friction2(double u, double p, double r, double * v, double * q) {
-    static const double a = 1.0;
-
-    /*
-     *                  2   2      2                 2   2  2
-     *     sqrt((6 - 2 a ) u  + 4 a  p r u + (3 - 2 a ) p  r ) + a u + a p r
-     * v = -----------------------------------------------------------------
-     *                                     3
-     *
-     *                  2   2      2                 2   2  2
-     *     sqrt((6 - 2 a ) u  + 4 a  p r u + (3 - 2 a ) p  r ) - 2 a u - 2 a p r
-     * q = ---------------------------------------------------------------------
-     *                                      3 r
-     */
-    double a2 = a*a;
-    double u2 = u*u;
-    double p2 = p*p;
-    double r2 = r*r;
-    double sr = sqrt((6 - 2*a2)*u2 + 4*a2*p*r*u + (3 - 2*a2)*p2*r2);
-    *v = (sr + a*u + a*p*r)/3;
-    *q = (sr - 2*a*u - 2*a*p*r)/(3*r);
-}
-
-static void tangential_friction3(double u, double p, double r, double * v_ptr, double * q_ptr) {
-    static const double a = 0.9;
-    double v, q;
-    v = (1-a)*u + a*p*r;
-    /*                    2   2       2                        2   2  2
-     *     sqrt((4 a - 2 a ) u  + (4 a  - 4 a) p r u + (1 - 2 a ) p  r )
-     * q = -------------------------------------------------------------
-     *                                   r
-     */
-    q = sqrt(2*a*(2 - a)*u*u + 4*a*(a - 1)*p*r*u + (1 - 2*a*a)*p*p*r*r)/r;
-    if (p*r > v)
-	q = -q;
-
-    *v_ptr = v;
-    *q_ptr = q;
-}
-#endif
-
 void ball_update_state (struct ball * p) {
     p->x += delta*p->v_x + delta*delta*g_x/2.0;
     p->v_x += delta*g_x;
@@ -179,19 +101,11 @@ void ball_update_state (struct ball * p) {
 	if (p->v_x > 0) {
 	    p->x -= p->x + p->radius - width;
 	    p->v_x = -p->v_x;
-#if 0
-	    /* tangential friction */
-	    tangential_friction(p->v_y, -p->v_angle, p->radius, &(p->v_y), &(p->v_angle));
-#endif
 	}
     } else if (p->x < p->radius) { /* left wall */
 	if (p->v_x < 0) {
 	    p->x += p->radius - p->x;
 	    p->v_x = -p->v_x;
-#if 0
-	    /* tangential friction */
-	    tangential_friction(p->v_y, p->v_angle, p->radius, &(p->v_y), &(p->v_angle));
-#endif
 	}
     } 
 
@@ -199,20 +113,11 @@ void ball_update_state (struct ball * p) {
 	if (p->v_y > 0) {
 	    p->y -= p->y + p->radius - height;
 	    p->v_y = -p->v_y;
-#if 0
-	    /* tangential friction */
-	    tangential_friction3(p->v_x, p->v_angle, p->radius, &(p->v_x), &(p->v_angle));
-#endif
 	}
     } else if (p->y < p->radius) { /* top wall */
 	if (p->v_y < 0) {
 	    p->y += p->radius - p->y;
 	    p->v_y = -p->v_y;
-#if 0
-	    /* tangential friction */
-	    tangential_friction(p->v_x, -p->v_angle, p->radius, &(p->v_x), &(p->v_angle));
-	    p->v_angle = -p->v_angle;
-#endif
 	}
     } 
     p->angle += delta*p->v_angle;
@@ -241,183 +146,18 @@ void movement_and_borders () {
 	ball_update_state(balls + i);
 }
 
-/* Collision check with index
-*/
-struct rectangle {
-    double min_x;			/* left */
-    double min_y;			/* bottom */
-    double max_x;			/* right */
-    double max_y;			/* top */
-};
-
-struct bt_node {
-    struct ball * ball;
-    struct rectangle r;
-    struct bt_node * left;
-    struct bt_node * right;
-};
-
-struct bt_node * c_index = 0;
-
-static struct bt_node * c_index_init_node(struct bt_node * n, struct ball * b) {
-    n->ball = b;
-    n->r.min_x = b->x - b->radius;
-    n->r.min_y = b->y - b->radius;
-    n->r.max_x = b->x + b->radius;
-    n->r.max_y = b->y + b->radius;
-    n->left = 0;
-    n->right = 0;
-    return n;
-}
-
-static void c_index_add_ball(struct bt_node * n, const struct ball * b) {
-    if (n->r.min_x > b->x - b->radius)
-	n->r.min_x = b->x - b->radius;
-    if (n->r.min_y > b->y - b->radius)
-	n->r.min_y = b->y - b->radius;
-    if (n->r.max_x < b->x + b->radius)
-	n->r.max_x = b->x + b->radius;
-    if (n->r.max_y < b->y + b->radius)
-	n->r.max_y = b->y + b->radius;
-}
-
-static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball * b) {
-    double w = width;
-    double h = height;
-    double ref_x = 0.0;
-    double ref_y = 0.0;
-    c_index_init_node(n, b);
-    for (;;) {
-	c_index_add_ball(t, b);
-	if (w > h) { /* horizontal split */
-	    if (b->x <= t->ball->x) {
-		if (t->left) {
-		    w = t->ball->x - ref_x;
-		    t = t->left;
-		} else {
-		    t->left = n;
-		    return;
-		}
-	    } else {
-		if (t->right) {
-		    w -= t->ball->x - ref_x;
-		    ref_x = t->ball->x;
-		    t = t->right;
-		} else {
-		    t->right = n;
-		    return;
-		}
-	    }
-	} else {		/* vertical split */
-	    if (b->y <= t->ball->y) {
-		if (t->left) {
-		    h = t->ball->y - ref_y;
-		    t = t->left;
-		} else {
-		    t->left = n;
-		    return;
-		}
-	    } else {
-		if (t->right) {
-		    h -= t->ball->y - ref_y;
-		    ref_y = t->ball->y;
-		    t = t->right;
-		} else {
-		    t->right = n;
-		    return;
-		}
-	    }
-	}
-    }
-}
-
-void c_index_build() {
-    c_index_init_node(c_index, balls);
-    for(int i = 1; i < n_balls; ++i)
-	c_index_insert(c_index, c_index + i, balls + i);
-}
-
-struct bt_node ** c_index_stack = 0;
-unsigned int c_index_stack_top = 0;
-
-static void c_index_stack_clear() {
-    c_index_stack_top = 0;
-}
-
-static void c_index_stack_push(struct bt_node * n) {
-    c_index_stack[c_index_stack_top++] = n;
-}
-
-static struct bt_node * c_index_stack_pop() {
-    if (c_index_stack_top > 0)
-	return c_index_stack[--c_index_stack_top];
-    else
-	return 0;
-}
-
-static int c_index_ball_in_rectangle(const struct bt_node * n, const struct ball * b) {
-    return n->r.min_x <= b->x + b->radius
-	&& n->r.max_x >= b->x - b->radius
-	&& n->r.min_y <= b->y + b->radius
-	&& n->r.max_y >= b->y - b->radius;
-}
-
-static int c_index_must_check(const struct bt_node * n, const struct ball * b) {
-    return n != 0 && n->ball < b && c_index_ball_in_rectangle(n, b);
-}
-
-void c_index_check_collisions() {
-    for(struct ball * b = balls + 1; b < balls + n_balls; ++b) {
-	c_index_stack_clear();
-	struct bt_node * n = c_index;
-	do {
-	    ball_collision(n->ball, b);
-	    if (c_index_must_check(n->left, b)) {
-		if (c_index_must_check(n->right, b))
-		    c_index_stack_push(n->right);
-		n = n->left;
-	    } else if (c_index_must_check(n->right, b)) {
-		n = n->right;
-	    } else {
-		n = c_index_stack_pop();
-	    }
-	} while (n);
-    }
-}
-
-int c_index_init() {
-    if (!c_index)
-	c_index = malloc(sizeof(struct bt_node) * n_balls);
-    if (!c_index)
-	return 0;
-    if (!c_index_stack)
-	c_index_stack = malloc(sizeof(struct bt_node *) * n_balls);
-    if (!c_index_stack)
-	return 0;
-    return 1;
-}
-
-void c_index_destroy() {
-    if (c_index)
-	free(c_index);
-    if (c_index_stack)
-	free(c_index_stack);
-    c_index = 0;
-    c_index_stack = 0;
-}
-
 /* Trivial collision check
  */
 
 void check_collisions_simple () {
     for(int i = 0; i < n_balls; ++i)
 	for(int j = i + 1; j < n_balls; ++j)
-	    ball_collision(balls + i, balls + j);
+	    ball_elastic_collision(balls + i, balls + j);
 }
 
 void check_collisions_with_index () {
     c_index_build();
-    c_index_check_collisions();
+    c_index_check_collisions(ball_elastic_collision);
 }
 
 void (*check_collisions)() = 0;
