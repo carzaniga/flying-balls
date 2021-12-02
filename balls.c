@@ -44,6 +44,21 @@ void random_velocity(struct ball * p) {
     } while (r2 > v_max*v_max || r2 < v_min*v_min);
 }
 
+struct ball spaceship;
+double spaceship_thrust = 0;
+int spaceship_thrust_countdown = 0;
+int spaceship_thrust_init = 50;
+
+void spaceship_init_state () {
+    spaceship.x = width/2;
+    spaceship.y = height/2;
+    spaceship.radius = 15;
+    spaceship.v_x = 0;
+    spaceship.v_y = 0;
+    spaceship.angle = 0;
+    spaceship.v_angle = 0;
+}
+
 void balls_init_state () {
     srand(time(NULL));
     static const unsigned int border = 10;
@@ -127,6 +142,23 @@ void ball_update_state (struct ball * p) {
 	p->angle += 2*M_PI;
 }
 
+void spaceship_update_state () {
+    if (spaceship_thrust > 0) {
+	double fx = cos(spaceship.angle)*spaceship_thrust;
+	double fy = sin(spaceship.angle)*spaceship_thrust;
+
+	spaceship.x += delta*delta*fx/2.0;
+	spaceship.v_x += delta*fx;
+	spaceship.y += delta*delta*fy/2.0;
+	spaceship.v_y += delta*fy;
+	if (spaceship_thrust_countdown > 0)
+	    --spaceship_thrust_countdown;
+	else
+	    spaceship_thrust = 0;
+    }
+    ball_update_state(&spaceship);
+}
+
 void reposition_within_borders () {
     for(int i = 0; i < n_balls; ++i) {
 	struct ball * p = balls + i;
@@ -144,6 +176,7 @@ void reposition_within_borders () {
 void movement_and_borders () {
     for(int i = 0; i < n_balls; ++i)
 	ball_update_state(balls + i);
+    spaceship_update_state();
 }
 
 /* Trivial collision check
@@ -153,6 +186,8 @@ void check_collisions_simple () {
     for(int i = 0; i < n_balls; ++i)
 	for(int j = i + 1; j < n_balls; ++j)
 	    ball_elastic_collision(balls + i, balls + j);
+    for(int j = 0; j < n_balls; ++j)
+	ball_elastic_collision(&spaceship, balls + j);
 }
 
 void check_collisions_with_index () {
@@ -308,6 +343,28 @@ void destroy_graphics() {
     faces_count = 0;
 }
 
+void draw_space_ship (cairo_t * cr) {
+    static const double one_over_sqrt_2 = 0.70710678118654752440;
+    cairo_save(cr);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 1.0, 1.0);
+    cairo_translate(cr, spaceship.x, spaceship.y);
+    cairo_rotate(cr, spaceship.angle);
+    cairo_arc(cr, 0, 0, spaceship.radius, 0, 2*M_PI);
+    cairo_stroke(cr);
+    cairo_set_source_rgba(cr, 0.0, 1.0, 0.0, 1.0);
+    cairo_move_to (cr, 0, 0);
+    cairo_line_to (cr, -one_over_sqrt_2*spaceship.radius, one_over_sqrt_2*spaceship.radius);
+    cairo_line_to (cr, spaceship.radius, 0);
+    cairo_line_to (cr, -one_over_sqrt_2*spaceship.radius, -one_over_sqrt_2*spaceship.radius);
+    cairo_line_to (cr, 0, 0);
+    cairo_stroke(cr);
+    for (unsigned int i = 0; i < spaceship_thrust; i += 5) {
+	cairo_arc(cr, 0, 0, spaceship.radius + i, 0.7*M_PI, 1.3*M_PI);
+	cairo_stroke(cr);
+    }
+    cairo_restore(cr);
+}
+
 void draw_balls_onto_window () {
     /* clear pixmap */
     GdkWindow * window = gtk_widget_get_window(canvas);
@@ -322,7 +379,8 @@ void draw_balls_onto_window () {
     draw_gravity_vector(cr);
 
     /* draw balls */
-    for(const struct ball * b = balls; b != balls + n_balls; ++b) {
+    draw_space_ship(cr);
+    for (const struct ball * b = balls; b != balls + n_balls; ++b) {
 	cairo_save(cr);
 	cairo_translate(cr, b->x - b->radius, b->y - b->radius);
 	unsigned int face_id;
@@ -394,9 +452,16 @@ gboolean mouse_scroll (GtkWidget *widget, GdkEvent *event, gpointer user_data) {
 	case GDK_SCROLL_SMOOTH: {
 	    double dx, dy;
 	    gdk_event_get_scroll_deltas (event, &dx, &dy);
-	    g_x -= 10*dx;
-	    g_y -= 10*dy;
-	    gravity_vector_countdown = gravity_vector_init;
+	    spaceship.angle -= dx/4;
+	    if (spaceship.angle < 0)
+		spaceship.angle += 2*M_PI;
+	    else if (spaceship.angle > 2*M_PI)
+		spaceship.angle -= 2*M_PI;
+	    spaceship_thrust += dy;
+	    if (spaceship_thrust > 0)
+		spaceship_thrust_countdown = spaceship_thrust_init;
+	    else
+		spaceship_thrust = 0;
 	    break;
 	}
 	case GDK_SCROLL_LEFT:
@@ -543,6 +608,7 @@ int main (int argc, const char *argv[]) {
     assert(c_index_init());
     
     balls_init_state();
+    spaceship_init_state();
 
     gtk_init(0, 0);
 
