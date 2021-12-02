@@ -144,8 +144,8 @@ void ball_update_state (struct ball * p) {
 
 void spaceship_update_state () {
     if (spaceship_thrust > 0) {
-	double fx = cos(spaceship.angle)*spaceship_thrust;
-	double fy = sin(spaceship.angle)*spaceship_thrust;
+	double fx = cos(spaceship.angle)*spaceship_thrust*4.0;
+	double fy = sin(spaceship.angle)*spaceship_thrust*4.0;
 
 	spaceship.x += delta*delta*fx/2.0;
 	spaceship.v_x += delta*fx;
