@@ -33,8 +33,6 @@ unsigned int n_balls = 50;
 double g_y = 20;
 double g_x = 0;
 
-double clear_alpha = 1.0;
-
 void random_velocity(struct ball * p) {
     double r2;
     do {
@@ -387,7 +385,7 @@ void draw_balls (cairo_t * cr) {
 }
 
 gboolean draw_frame (GtkWidget * widget, cairo_t *cr, gpointer data) {
-    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, clear_alpha);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
     cairo_paint(cr);
     draw_gravity_vector(cr);
     draw_balls(cr);
@@ -496,7 +494,6 @@ void print_usage (const char * progname) {
 	    "\tv=<min-velocity>-<max-velocity>\n"
 	    "\tdelta=<frame-delta-time> (in seconds)\n"
 	    "\tface=<filename>\n"
-	    "\tclear=<clear-alpha>\n"
 	    "\tstats=<sample-count> :: rendering timing statitstics (0=disabled, default)\n"
 	    "\tcollisions=<C> :: n=no collisions, s=simple, i=index\n"
 	    "\t-r :: activate face rotation\n",
@@ -567,8 +564,6 @@ int main (int argc, const char *argv[]) {
 	    face_filename = argv[i] + 5;
 	    continue;
 	}
-	if (sscanf(argv[i], "clear=%lf", &clear_alpha) == 1)
-	    continue;
 	if (sscanf(argv[i], "stats=%u", &stats_sampling) == 1)
 	    continue;
 	char collisions;
