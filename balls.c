@@ -52,7 +52,7 @@ int spaceship_thrust_init = 50;
 void spaceship_init_state () {
     spaceship.x = width/2;
     spaceship.y = height/2;
-    spaceship.radius = 15;
+    spaceship.radius = 30;
     spaceship.v_x = 0;
     spaceship.v_y = 0;
     spaceship.angle = 0;
