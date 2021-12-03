@@ -367,21 +367,7 @@ void draw_space_ship (cairo_t * cr) {
     cairo_restore(cr);
 }
 
-void draw_balls_onto_window () {
-    /* clear pixmap */
-    GdkWindow * window = gtk_widget_get_window(canvas);
-    cairo_region_t * c_region = cairo_region_create();
-    GdkDrawingContext * d_context = gdk_window_begin_draw_frame (window, c_region);
-
-    cairo_t * cr = gdk_drawing_context_get_cairo_context (d_context);
-
-    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, clear_alpha);
-    cairo_paint(cr);
-
-    draw_gravity_vector(cr);
-
-    /* draw balls */
-    draw_space_ship(cr);
+void draw_balls (cairo_t * cr) {
     for (const struct ball * b = balls; b != balls + n_balls; ++b) {
 	cairo_save(cr);
 	cairo_translate(cr, b->x - b->radius, b->y - b->radius);
@@ -398,8 +384,15 @@ void draw_balls_onto_window () {
 	cairo_paint(cr);
 	cairo_restore(cr);
     }
-    gdk_window_end_draw_frame(window, d_context);
-    cairo_region_destroy(c_region);
+}
+
+gboolean draw_frame (GtkWidget * widget, cairo_t *cr, gpointer data) {
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, clear_alpha);
+    cairo_paint(cr);
+    draw_gravity_vector(cr);
+    draw_balls(cr);
+    draw_space_ship(cr);
+    return FALSE;
 }
 
 gint configure_event (GtkWidget *widget, GdkEventConfigure * event) {
@@ -516,14 +509,14 @@ static unsigned int stats_update_samples = 0;
 static guint64 stats_draw_usec = 0;
 static unsigned int stats_draw_samples = 0;
 
-gboolean draw_event (GtkWidget *widget, cairo_t *cr, gpointer data) {
+gboolean draw_event (GtkWidget *widget, cairo_t * cr, gpointer data) {
     if (stats_sampling > 0) {
 	guint64 start = g_get_monotonic_time ();
-	draw_balls_onto_window();
+	draw_frame (widget, cr, data);
 	stats_draw_usec += g_get_monotonic_time () - start;
 	++stats_draw_samples;
     } else
-	draw_balls_onto_window();
+	draw_frame (widget, cr, data);
     return FALSE;
 }
 
