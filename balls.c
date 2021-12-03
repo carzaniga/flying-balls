@@ -214,6 +214,7 @@ int gravity_vector_init = 300;
 
 void draw_gravity_vector(cairo_t * cr) {
     if (gravity_vector_countdown != 0) {
+	cairo_save(cr);
 	cairo_new_path(cr);
 	cairo_move_to(cr, width/2, height/2);
 	cairo_line_to(cr, width/2 + g_x, height/2 + g_y);
@@ -224,6 +225,7 @@ void draw_gravity_vector(cairo_t * cr) {
 	cairo_fill(cr);
 	if (gravity_vector_countdown > 0)
 	    --gravity_vector_countdown;
+	cairo_restore(cr);
     }
 }
 
