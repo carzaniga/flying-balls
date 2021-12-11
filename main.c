@@ -24,6 +24,8 @@ void check_collisions_simple () {
 	    ball_elastic_collision(balls + i, balls + j);
     for(int j = 0; j < n_balls; ++j)
 	ball_elastic_collision(&spaceship, balls + j);
+   gravity_collisions (balls, balls + n_balls);
+   gravity_collisions (&spaceship, &spaceship + 1);
 }
 
 void check_collisions_with_index () {
@@ -31,6 +33,8 @@ void check_collisions_with_index () {
     c_index_check_collisions(ball_elastic_collision);
    for(int j = 0; j < n_balls; ++j)
 	ball_elastic_collision(&spaceship, balls + j);
+   gravity_collisions (balls, balls + n_balls);
+   gravity_collisions (&spaceship, &spaceship + 1);
 }
 
 void (*check_collisions)() = 0;
@@ -137,7 +141,8 @@ void print_usage (const char * progname) {
 	    "options:\n"
 	    "\t<width>x<height>\n"
 	    "\tn=<number of balls>\n"
-	    "\tfx=<x-force>\n"
+	    "\tfconst=<x-force>,<y-force> :: constant force field\n"
+	    "\tfnewt=<radius>,<g> :: radial, Newtonian force field\n"
 	    "\tfy=<y-force>\n"
 	    "\tradius=<min-radius>-<max-radius>\n"
 	    "\tv=<min-velocity>-<max-velocity>\n"
@@ -193,16 +198,21 @@ gboolean timeout (gpointer user_data) {
 int main (int argc, const char *argv[]) {
     int w = DEFAULT_WIDTH;
     int h = DEFAULT_HEIGHT;
+    double fa, fb;
     
     for (int i = 1; i < argc; ++i) {
 	if (sscanf(argv[i], "%dx%d", &w, &h) == 2)
 	    continue;
 	if (sscanf(argv[i], "n=%u", &n_balls) == 1)
 	    continue;
-	if (sscanf(argv[i], "fx=%lf", &g_x) == 1)
+	if (sscanf(argv[i], "fconst=%lf,%lf", &fa, &fb) == 2) {
+	    gravity_constant_field (fa,fb);
 	    continue;
-	if (sscanf(argv[i], "fy=%lf", &g_y) == 1)
+	}
+	if (sscanf(argv[i], "fnewt=%lf,%lf", &fa, &fb) == 2) {
+	    gravity_newton_field (fa,fb);
 	    continue;
+	}
 	if (sscanf(argv[i], "radius=%u-%u", &radius_min, &radius_max) == 2)
 	    continue;
 	if (sscanf(argv[i], "v=%u-%u", &v_min, &v_max) == 2)

@@ -48,11 +48,14 @@ void balls_init_state () {
 }
 
 void ball_update_state (struct ball * p) {
-    p->x += delta*p->v_x + delta*delta*g_x/2.0;
-    p->v_x += delta*g_x;
+    struct gravity_vector g;
+    gravity_get_vector (&g, p);
 
-    p->y += delta*p->v_y + delta*delta*g_y/2.0;
-    p->v_y += delta*g_y;
+    p->x += delta*p->v_x + delta*delta*g.x/2.0;
+    p->v_x += delta*g.x;
+
+    p->y += delta*p->v_y + delta*delta*g.y/2.0;
+    p->v_y += delta*g.y;
 
     if (p->x + p->radius > width) { /* right wall */
 	if (p->v_x > 0) {
