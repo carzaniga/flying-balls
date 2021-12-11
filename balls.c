@@ -204,7 +204,6 @@ void update_state () {
 /* Graphics System
  */
 
-GtkWidget * window;
 GtkWidget * canvas;
 
 int gravity_vector_countdown = 0;
@@ -259,7 +258,7 @@ struct ball_face * new_ball_face(unsigned int radius, cairo_surface_t * face, in
 	return 0;
     }
     for (int i = 0; i < f->rotations; ++i) {
-	f->c_faces[i] = gdk_window_create_similar_surface(gtk_widget_get_window(window),
+	f->c_faces[i] = gdk_window_create_similar_surface(gtk_widget_get_window(canvas),
 							  CAIRO_CONTENT_COLOR_ALPHA,
 							  2*radius, 2*radius);
 	assert(f->c_faces[i]);
@@ -602,7 +601,7 @@ int main (int argc, const char *argv[]) {
 
     gtk_init(0, 0);
 
-    window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    GtkWidget * window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     gtk_window_set_default_size(GTK_WINDOW(window), width, height);
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     gtk_window_set_title(GTK_WINDOW(window), "Game");
