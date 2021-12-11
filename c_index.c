@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "balls.h"
+#include "game.h"
 #include "c_index.h"
 
 /* Collision check with index
