@@ -51,9 +51,14 @@ void spaceship_draw (cairo_t * cr) {
     cairo_line_to (cr, -one_over_sqrt_2*spaceship.radius, -one_over_sqrt_2*spaceship.radius);
     cairo_line_to (cr, 0, 0);
     cairo_stroke(cr);
+    cairo_set_source_rgba(cr, 1.0, 0.5, 0.0, 1.0);
     for (unsigned int i = 0; i < spaceship_thrust; i += 5) {
-	cairo_arc(cr, 0, 0, spaceship.radius + i, 0.7*M_PI, 1.3*M_PI);
+	double d_angle = spaceship.radius/(spaceship.radius + 0.1*i)*0.25*M_PI*(1 - 0.99*i/spaceship_thrust);
+	cairo_set_source_rgba(cr, 1.0, 1.0*(1 - 0.5*i/spaceship_thrust), 0.0, 1.0);
+	cairo_arc(cr, 0, 0, spaceship.radius + i, M_PI - d_angle, M_PI + d_angle);
 	cairo_stroke(cr);
+	if (d_angle > 0.05)
+	    d_angle = 0.7*d_angle;
     }
     cairo_restore(cr);
 }
