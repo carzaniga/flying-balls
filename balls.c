@@ -183,6 +183,7 @@ static struct ball_face * new_ball_face(unsigned int radius, cairo_surface_t * f
 	    cairo_set_source (ball_cr, pat);
 	    cairo_arc (ball_cr, 0.0, 0.0, radius, 0, 2 * M_PI);
 	    cairo_fill (ball_cr);
+	    cairo_pattern_destroy (pat);
 	}
 	cairo_surface_flush(f->c_faces[i]);
 	cairo_destroy(ball_cr);

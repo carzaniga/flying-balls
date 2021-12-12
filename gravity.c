@@ -20,7 +20,7 @@ void gravity_constant_field (double x, double y) {
     g_x = x;
     g_y = y;
 }
-    
+
 void gravity_newton_field (double r, double g) {
     constant_field = 0;
     g_r = r;
