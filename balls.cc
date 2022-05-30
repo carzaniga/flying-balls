@@ -28,9 +28,9 @@ static void random_velocity(struct ball * p) {
 }
 
 void balls_init_state () {
-    static const unsigned int border = 10;
-    unsigned int w = width < 2*border ? 1 : width - 2*border;
-    unsigned int h = height < 2*border ? 1 : height - 2*border;
+    static const int border = 10;
+    int w = width < 2*border ? 1 : width - 2*border;
+    int h = height < 2*border ? 1 : height - 2*border;
 
     for (unsigned int i = 0; i < n_balls; ++i) {
 	balls[i].x = border + rand() % w;
@@ -141,7 +141,7 @@ static double random_color_component() {
 };
 
 static struct ball_face * new_ball_face(unsigned int radius, cairo_surface_t * face, int rotation) {
-    struct ball_face * f = malloc(sizeof(struct ball_face));
+    struct ball_face * f = (struct ball_face *)malloc(sizeof(struct ball_face));
     if (!f)
 	return 0;
     if (face && rotation) {
@@ -149,12 +149,12 @@ static struct ball_face * new_ball_face(unsigned int radius, cairo_surface_t * f
     } else {
 	f->rotations = 1;
     }
-    f->c_faces = malloc(sizeof(cairo_surface_t *)*f->rotations);
+    f->c_faces = (cairo_surface_t **)malloc(sizeof(cairo_surface_t *)*f->rotations);
     if (!f->c_faces) {
 	free(f);
 	return 0;
     }
-    for (int i = 0; i < f->rotations; ++i) {
+    for (unsigned int i = 0; i < f->rotations; ++i) {
 	f->c_faces[i] = gdk_window_create_similar_surface(gtk_widget_get_window(canvas),
 							  CAIRO_CONTENT_COLOR_ALPHA,
 							  2*radius, 2*radius);
@@ -204,7 +204,7 @@ static void balls_init_faces () {
     }
     if (face_surface) {
 	faces_count = radius_max + 1 - radius_min;
-	faces = malloc(sizeof(struct ball_face *)*faces_count);
+	faces = (struct ball_face **)malloc(sizeof(struct ball_face *)*faces_count);
 	for (unsigned int i = 0; i < faces_count; ++i)
 	    faces[i] = 0;
 	for(struct ball * b = balls; b != balls + n_balls; ++b) {
@@ -216,7 +216,7 @@ static void balls_init_faces () {
 	cairo_surface_destroy (face_surface);
     } else {
 	faces_count = n_balls;
-	faces = malloc(sizeof(struct ball_face *)*faces_count);
+	faces = (struct ball_face **)malloc(sizeof(struct ball_face *)*faces_count);
 	for (unsigned int i = 0; i < n_balls; ++i)
 	    balls[i].face = faces[i] = new_ball_face(balls[i].radius, 0, face_rotation);
     }
@@ -244,7 +244,7 @@ void balls_draw (cairo_t * cr) {
 static void balls_destroy_faces () {
     if (!faces)
 	return;
-    for (int i = 0; i < faces_count; ++i) {
+    for (unsigned int i = 0; i < faces_count; ++i) {
 	if (faces[i]) {
 	    if (faces[i]->c_faces) {
 		for (unsigned int j = 0; j < faces[i]->rotations; ++j)
@@ -265,7 +265,7 @@ void balls_destroy () {
 }
 
 void balls_init () {
-    balls = malloc(sizeof(struct ball)*n_balls);
+    balls = (struct ball *)malloc(sizeof(struct ball)*n_balls);
     assert(balls);
     balls_init_state ();
     balls_init_faces ();

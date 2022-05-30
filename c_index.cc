@@ -96,7 +96,7 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
 
 void c_index_build() {
     c_index_init_node(c_index, balls);
-    for(int i = 1; i < n_balls; ++i)
+    for(unsigned int i = 1; i < n_balls; ++i)
 	c_index_insert(c_index, c_index + i, balls + i);
 }
 
@@ -150,11 +150,11 @@ void c_index_check_collisions(void (*collision)(struct ball *, struct ball *)) {
 
 int c_index_init() {
     if (!c_index)
-	c_index = malloc(sizeof(struct bt_node) * n_balls);
+	c_index = (struct bt_node *) malloc(sizeof(struct bt_node) * n_balls);
     if (!c_index)
 	return 0;
     if (!c_index_stack)
-	c_index_stack = malloc(sizeof(struct bt_node *) * n_balls);
+	c_index_stack = (struct bt_node **) malloc(sizeof(struct bt_node *) * n_balls);
     if (!c_index_stack)
 	return 0;
     return 1;

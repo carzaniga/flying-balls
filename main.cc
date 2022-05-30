@@ -19,10 +19,10 @@
 /* Trivial collision check
  */
 void check_collisions_simple () {
-    for(int i = 0; i < n_balls; ++i)
-	for(int j = i + 1; j < n_balls; ++j)
+    for(unsigned int i = 0; i < n_balls; ++i)
+	for(unsigned int j = i + 1; j < n_balls; ++j)
 	    ball_elastic_collision(balls + i, balls + j);
-    for(int j = 0; j < n_balls; ++j)
+    for(unsigned int j = 0; j < n_balls; ++j)
 	ball_elastic_collision(&spaceship, balls + j);
    gravity_collisions (balls, balls + n_balls);
    gravity_collisions (&spaceship, &spaceship + 1);
@@ -31,7 +31,7 @@ void check_collisions_simple () {
 void check_collisions_with_index () {
     c_index_build();
     c_index_check_collisions(ball_elastic_collision);
-   for(int j = 0; j < n_balls; ++j)
+   for(unsigned int j = 0; j < n_balls; ++j)
 	ball_elastic_collision(&spaceship, balls + j);
    gravity_collisions (balls, balls + n_balls);
    gravity_collisions (&spaceship, &spaceship + 1);
@@ -42,7 +42,7 @@ void (*check_collisions)() = 0;
 void update_state () {
     if (check_collisions)
 	check_collisions();
-    for(int i = 0; i < n_balls; ++i)
+    for(unsigned int i = 0; i < n_balls; ++i)
 	ball_update_state(balls + i);
     spaceship_update_state();
 }

@@ -11,8 +11,8 @@
 
 double delta = DEFAULT_DELTA;	/* seconds */
 
-unsigned int width = DEFAULT_WIDTH;
-unsigned int height = DEFAULT_HEIGHT;
+int width = DEFAULT_WIDTH;
+int height = DEFAULT_HEIGHT;
 
 /* Graphics System
  */
