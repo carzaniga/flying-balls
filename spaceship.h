@@ -1,7 +1,7 @@
 #ifndef SPACESHIP_H_INCLUDED
 #define SPACESHIP_H_INCLUDED
 
-extern struct ball spaceship;
+extern ball spaceship;
 
 extern void spaceship_init_state ();
 extern void spaceship_update_state ();
