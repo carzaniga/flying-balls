@@ -30,7 +30,7 @@ run: balls
 all: $(PROGS)
 
 balls: $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
 .PHONY: clean
 clean:
