@@ -86,16 +86,16 @@ void ball_update_state (ball * p) {
 }
 
 void ball_elastic_collision (ball * p, ball * q) {
-    vec2d dp = q->position - p->position;
-    double d2 = vec2d::dot(dp,dp);
+    vec2d pq = q->position - p->position;
+    double d2 = vec2d::dot(pq,pq);
     double r = p->radius + q->radius;
     if (d2 <= r*r) {
-	vec2d dv = q->velocity - p->velocity;
+	vec2d pq_v = q->velocity - p->velocity;
 
 	double mp = p->radius * p->radius;
 	double mq = q->radius * q->radius;
 
-	double f = vec2d::dot(dv,dp);
+	double f = vec2d::dot(pq_v, pq);
 
 	if (f < 0) {
 	    f /= d2*(mp + mq);
