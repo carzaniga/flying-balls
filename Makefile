@@ -13,13 +13,13 @@ LIBS=$(GTK_LIBS) -lm
 PROGS=balls
 OBJS=balls.o c_index.o game.o gravity.o spaceship.o main.o
 
-# dependencies (gcc -MM *.c)
-balls.o: balls.cc game.h balls.h gravity.h
-c_index.o: c_index.cc balls.h game.h c_index.h
+# dependencies (gcc -MM *.cc)
+balls.o: balls.cc game.h balls.h vec2d.h gravity.h
+c_index.o: c_index.cc balls.h vec2d.h game.h c_index.h
 game.o: game.cc game.h
-gravity.o: gravity.cc gravity.h game.h
-main.o: main.cc game.h balls.h c_index.h gravity.h spaceship.h
-spaceship.o: spaceship.cc balls.h game.h
+gravity.o: gravity.cc gravity.h balls.h vec2d.h game.h
+main.o: main.cc game.h balls.h vec2d.h c_index.h gravity.h spaceship.h
+spaceship.o: spaceship.cc balls.h vec2d.h game.h
 stats.o: stats.cc
 
 .PHONY: run

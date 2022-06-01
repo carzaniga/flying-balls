@@ -10,24 +10,22 @@ int spaceship_thrust_countdown = 0;
 int spaceship_thrust_init = 50;
 
 void spaceship_init_state () {
-    spaceship.x = width/2;
-    spaceship.y = height/2;
+    spaceship.position.x = width/2;
+    spaceship.position.y = height/2;
     spaceship.radius = 30;
-    spaceship.v_x = 0;
-    spaceship.v_y = 0;
+    spaceship.velocity.x = 0;
+    spaceship.velocity.y = 0;
     spaceship.angle = 0;
     spaceship.v_angle = 0;
 }
 
 void spaceship_update_state () {
     if (spaceship_thrust > 0) {
-	double fx = cos(spaceship.angle)*spaceship_thrust*4.0;
-	double fy = sin(spaceship.angle)*spaceship_thrust*4.0;
+	vec2d f { cos(spaceship.angle)*spaceship_thrust*4.0,
+	          sin(spaceship.angle)*spaceship_thrust*4.0 };
 
-	spaceship.x += delta*delta*fx/2.0;
-	spaceship.v_x += delta*fx;
-	spaceship.y += delta*delta*fy/2.0;
-	spaceship.v_y += delta*fy;
+	spaceship.position += delta*delta*f/2.0;
+	spaceship.velocity += delta*f;
 	if (spaceship_thrust_countdown > 0)
 	    --spaceship_thrust_countdown;
 	else
@@ -40,7 +38,7 @@ void spaceship_draw (cairo_t * cr) {
     static const double one_over_sqrt_2 = 0.70710678118654752440;
     cairo_save(cr);
     cairo_set_source_rgba(cr, 0.0, 0.0, 1.0, 1.0);
-    cairo_translate(cr, spaceship.x, spaceship.y);
+    cairo_translate(cr, spaceship.position.x, spaceship.position.y);
     cairo_rotate(cr, spaceship.angle);
     cairo_arc(cr, 0, 0, spaceship.radius, 0, 2*M_PI);
     cairo_stroke(cr);

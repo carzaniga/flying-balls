@@ -3,16 +3,15 @@
 
 #include <gtk/gtk.h>
 
+#include "vec2d.h"
+
 class ball_face;
 
 class ball {
 public:
-    double x;
-    double y;
     unsigned int radius;
-
-    double v_x;
-    double v_y;
+    vec2d position;
+    vec2d velocity;
 
     double angle;
     double v_angle;

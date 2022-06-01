@@ -78,7 +78,7 @@ gint configure_event (GtkWidget *widget, GdkEventConfigure * event) {
     width = gtk_widget_get_allocated_width (widget);
     height = gtk_widget_get_allocated_height (widget);
 
-    for (struct ball * b = balls; b != balls + n_balls; ++b)
+    for (ball * b = balls; b != balls + n_balls; ++b)
 	ball_reposition (b);
     ball_reposition (&spaceship);
     return TRUE;

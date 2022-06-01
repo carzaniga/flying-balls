@@ -24,24 +24,24 @@ struct bt_node * c_index = 0;
 
 static struct bt_node * c_index_init_node(struct bt_node * n, struct ball * b) {
     n->ball = b;
-    n->r.min_x = b->x - b->radius;
-    n->r.min_y = b->y - b->radius;
-    n->r.max_x = b->x + b->radius;
-    n->r.max_y = b->y + b->radius;
+    n->r.min_x = b->velocity.x - b->radius;
+    n->r.min_y = b->velocity.y - b->radius;
+    n->r.max_x = b->velocity.x + b->radius;
+    n->r.max_y = b->velocity.y + b->radius;
     n->left = 0;
     n->right = 0;
     return n;
 }
 
 static void c_index_add_ball(struct bt_node * n, const struct ball * b) {
-    if (n->r.min_x > b->x - b->radius)
-	n->r.min_x = b->x - b->radius;
-    if (n->r.min_y > b->y - b->radius)
-	n->r.min_y = b->y - b->radius;
-    if (n->r.max_x < b->x + b->radius)
-	n->r.max_x = b->x + b->radius;
-    if (n->r.max_y < b->y + b->radius)
-	n->r.max_y = b->y + b->radius;
+    if (n->r.min_x > b->velocity.x - b->radius)
+	n->r.min_x = b->velocity.x - b->radius;
+    if (n->r.min_y > b->velocity.y - b->radius)
+	n->r.min_y = b->velocity.y - b->radius;
+    if (n->r.max_x < b->velocity.x + b->radius)
+	n->r.max_x = b->velocity.x + b->radius;
+    if (n->r.max_y < b->velocity.y + b->radius)
+	n->r.max_y = b->velocity.y + b->radius;
 }
 
 static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball * b) {
@@ -53,9 +53,9 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
     for (;;) {
 	c_index_add_ball(t, b);
 	if (w > h) { /* horizontal split */
-	    if (b->x <= t->ball->x) {
+	    if (b->velocity.x <= t->ball->velocity.x) {
 		if (t->left) {
-		    w = t->ball->x - ref_x;
+		    w = t->ball->velocity.x - ref_x;
 		    t = t->left;
 		} else {
 		    t->left = n;
@@ -63,8 +63,8 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
 		}
 	    } else {
 		if (t->right) {
-		    w -= t->ball->x - ref_x;
-		    ref_x = t->ball->x;
+		    w -= t->ball->velocity.x - ref_x;
+		    ref_x = t->ball->velocity.x;
 		    t = t->right;
 		} else {
 		    t->right = n;
@@ -72,9 +72,9 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
 		}
 	    }
 	} else {		/* vertical split */
-	    if (b->y <= t->ball->y) {
+	    if (b->velocity.y <= t->ball->velocity.y) {
 		if (t->left) {
-		    h = t->ball->y - ref_y;
+		    h = t->ball->velocity.y - ref_y;
 		    t = t->left;
 		} else {
 		    t->left = n;
@@ -82,8 +82,8 @@ static void c_index_insert(struct bt_node * t, struct bt_node * n, struct ball *
 		}
 	    } else {
 		if (t->right) {
-		    h -= t->ball->y - ref_y;
-		    ref_y = t->ball->y;
+		    h -= t->ball->velocity.y - ref_y;
+		    ref_y = t->ball->velocity.y;
 		    t = t->right;
 		} else {
 		    t->right = n;
@@ -119,10 +119,10 @@ static struct bt_node * c_index_stack_pop() {
 }
 
 static int c_index_ball_in_rectangle(const struct bt_node * n, const struct ball * b) {
-    return n->r.min_x <= b->x + b->radius
-	&& n->r.max_x >= b->x - b->radius
-	&& n->r.min_y <= b->y + b->radius
-	&& n->r.max_y >= b->y - b->radius;
+    return n->r.min_x <= b->velocity.x + b->radius
+	&& n->r.max_x >= b->velocity.x - b->radius
+	&& n->r.min_y <= b->velocity.y + b->radius
+	&& n->r.max_y >= b->velocity.y - b->radius;
 }
 
 static int c_index_must_check(const struct bt_node * n, const struct ball * b) {

@@ -18,13 +18,19 @@ unsigned int v_angle_max = 100;
 ball * balls = nullptr;
 unsigned int n_balls = 50;
 
-static void random_velocity(ball * p) {
+static vec2d random_velocity() {
     double r2;
+    vec2d v;
     do {
-	p->v_x = v_min + rand() % (v_max + 1 - v_min);
-	p->v_y = v_min + rand() % (v_max + 1 - v_min);
-	r2 = p->v_x*p->v_x + p->v_y*p->v_y;
+	v.x = v_min + rand() % (v_max + 1 - v_min);
+	v.y = v_min + rand() % (v_max + 1 - v_min);
+	r2 = vec2d::dot(v,v);
     } while (r2 > v_max*v_max || r2 < v_min*v_min);
+    if (rand() % 2)
+	v.x = -v.x;
+    if (rand() % 2)
+	    v.y = -v.y;
+    return v;
 }
 
 void balls_init_state () {
@@ -33,13 +39,9 @@ void balls_init_state () {
     int h = height < 2*border ? 1 : height - 2*border;
 
     for (unsigned int i = 0; i < n_balls; ++i) {
-	balls[i].x = border + rand() % w;
-	balls[i].y = border + rand() % h;
-	random_velocity(balls + i);
-	if (rand() % 2)
-	    balls[i].v_x = -balls[i].v_x;
-	if (rand() % 2)
-	    balls[i].v_y = -balls[i].v_y;
+	balls[i].position.x = border + rand() % w;
+	balls[i].position.y = border + rand() % h;
+	balls[i].velocity = random_velocity();
 	balls[i].radius = radius_min + rand() % (radius_max + 1 - radius_min);
 	unsigned int v_angle_360 = (v_angle_min + rand() % (v_angle_max + 1 - v_angle_min)) % 360;
 	balls[i].v_angle = 2*M_PI*v_angle_360/360;
@@ -48,36 +50,32 @@ void balls_init_state () {
 }
 
 void ball_update_state (ball * p) {
-    struct gravity_vector g;
-    gravity_get_vector (&g, p);
+    vec2d g = gravity_vector (p);
 
-    p->x += delta*p->v_x + delta*delta*g.x/2.0;
-    p->v_x += delta*g.x;
+    p->position += delta*p->velocity + delta*delta*g/2.0;
+    p->velocity += delta*g;
 
-    p->y += delta*p->v_y + delta*delta*g.y/2.0;
-    p->v_y += delta*g.y;
-
-    if (p->x + p->radius > width) { /* right wall */
-	if (p->v_x > 0) {
-	    p->x -= p->x + p->radius - width;
-	    p->v_x = -p->v_x;
+    if (p->position.x + p->radius > width) { /* right wall */
+	if (p->velocity.x > 0) {
+	    p->position.x -= p->position.x + p->radius - width;
+	    p->velocity.x = -p->velocity.x;
 	}
-    } else if (p->x < p->radius) { /* left wall */
-	if (p->v_x < 0) {
-	    p->x += p->radius - p->x;
-	    p->v_x = -p->v_x;
+    } else if (p->position.x < p->radius) { /* left wall */
+	if (p->velocity.x < 0) {
+	    p->position.x += p->radius - p->position.x;
+	    p->velocity.x = -p->velocity.x;
 	}
     } 
 
-    if (p->y + p->radius > height) { /* bottom wall */
-	if (p->v_y > 0) {
-	    p->y -= p->y + p->radius - height;
-	    p->v_y = -p->v_y;
+    if (p->position.y + p->radius > height) { /* bottom wall */
+	if (p->velocity.y > 0) {
+	    p->position.y -= p->position.y + p->radius - height;
+	    p->velocity.y = -p->velocity.y;
 	}
-    } else if (p->y < p->radius) { /* top wall */
-	if (p->v_y < 0) {
-	    p->y += p->radius - p->y;
-	    p->v_y = -p->v_y;
+    } else if (p->position.y < p->radius) { /* top wall */
+	if (p->velocity.y < 0) {
+	    p->position.y += p->radius - p->position.y;
+	    p->velocity.y = -p->velocity.y;
 	}
     } 
     p->angle += delta*p->v_angle;
@@ -88,39 +86,34 @@ void ball_update_state (ball * p) {
 }
 
 void ball_elastic_collision (ball * p, ball * q) {
-    double dx = q->x - p->x;
-    double dy = q->y - p->y;
-    double d2 = dx*dx + dy*dy;
+    vec2d dp = q->position - p->position;
+    double d2 = vec2d::dot(dp,dp);
     double r = p->radius + q->radius;
     if (d2 <= r*r) {
-	double dv_x = q->v_x - p->v_x;
-	double dv_y = q->v_y - p->v_y;
+	vec2d dv = q->velocity - p->velocity;
 
 	double mp = p->radius * p->radius;
 	double mq = q->radius * q->radius;
 
-	double f = dv_x*dx + dv_y*dy;
+	double f = vec2d::dot(dv,dp);
 
 	if (f < 0) {
 	    f /= d2*(mp + mq);
-	    p->v_x += 2*mq*f*dx;
-	    p->v_y += 2*mq*f*dy;
-
-	    q->v_x -= 2*mp*f*dx;
-	    q->v_y -= 2*mp*f*dy;
+	    p->velocity += 2*mq*f*dp;
+	    q->velocity -= 2*mp*f*dp;
 	}
     }
 }
 
 void ball_reposition (ball * b) {
-    if (b->x < b->radius)
-	b->x = b->radius;
-    else if (b->x + b->radius > width)
-	b->x = width - b->radius;
-    if (b->y < b->radius)
-	b->y = b->radius;
-    else if (b->y + b->radius > height)
-	b->y = height - b->radius;
+    if (b->position.x < b->radius)
+	b->position.x = b->radius;
+    else if (b->position.x + b->radius > width)
+	b->position.x = width - b->radius;
+    if (b->position.y < b->radius)
+	b->position.y = b->radius;
+    else if (b->position.y + b->radius > height)
+	b->position.y = height - b->radius;
 }
 
 const char * face_filename = 0;
@@ -234,7 +227,7 @@ static void balls_init_faces () {
 
 void ball::draw (cairo_t * cr) const {
     cairo_save (cr);
-    cairo_translate (cr, x - radius, y - radius);
+    cairo_translate (cr, position.x - radius, position.y - radius);
     cairo_set_source_surface(cr, face->get_surface (angle), 0, 0);
     cairo_paint(cr);
     cairo_restore(cr);
