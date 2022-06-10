@@ -99,8 +99,8 @@ void ball_elastic_collision (ball * p, ball * q) {
 
 	if (f < 0) {
 	    f /= d2*(mp + mq);
-	    p->velocity += 2*mq*f*dp;
-	    q->velocity -= 2*mp*f*dp;
+	    p->velocity += 2*mq*f*pq;
+	    q->velocity -= 2*mp*f*pq;
 	}
     }
 }
