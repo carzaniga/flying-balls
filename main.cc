@@ -37,7 +37,7 @@ void check_collisions_with_index () {
    gravity_collisions (&spaceship, &spaceship + 1);
 }
 
-void (*check_collisions)() = 0;
+void (*check_collisions)() = check_collisions_simple;
 
 void update_state () {
     if (check_collisions)
