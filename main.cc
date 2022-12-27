@@ -21,23 +21,23 @@
 void check_collisions_simple () {
     for(unsigned int i = 0; i < n_balls; ++i)
 	for(unsigned int j = i + 1; j < n_balls; ++j)
-	    ball_elastic_collision(balls + i, balls + j);
+	    ball_ball_collision(balls + i, balls + j);
     for(unsigned int j = 0; j < n_balls; ++j)
-	ball_elastic_collision(&spaceship, balls + j);
+	ball_ball_collision(&spaceship, balls + j);
    gravity_collisions (balls, balls + n_balls);
    gravity_collisions (&spaceship, &spaceship + 1);
 }
 
 void check_collisions_with_index () {
     c_index_build();
-    c_index_check_collisions(ball_elastic_collision);
+    c_index_check_collisions(ball_ball_collision);
    for(unsigned int j = 0; j < n_balls; ++j)
-	ball_elastic_collision(&spaceship, balls + j);
+	ball_ball_collision(&spaceship, balls + j);
    gravity_collisions (balls, balls + n_balls);
    gravity_collisions (&spaceship, &spaceship + 1);
 }
 
-void (*check_collisions)() = 0;
+void (*check_collisions)() = check_collisions_simple;
 
 void update_state () {
     if (check_collisions)
@@ -66,6 +66,7 @@ gboolean draw_frame (GtkWidget * widget, cairo_t *cr, gpointer data) {
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
     cairo_paint(cr);
     gravity_draw (cr);
+    restitution_coefficient_draw (cr);
     balls_draw (cr);
     spaceship_draw (cr);
     return FALSE;
@@ -99,6 +100,12 @@ gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
 	break;
     case GDK_KEY_Right:
 	gravity_change (10, 0);
+	break;
+    case GDK_KEY_R:
+	restitution_coefficient_change (0.01);
+	break;
+    case GDK_KEY_r:
+	restitution_coefficient_change (-0.01);
 	break;
     case GDK_KEY_G:
     case GDK_KEY_g:
@@ -150,6 +157,7 @@ void print_usage (const char * progname) {
 	    "\tface=<filename>\n"
 	    "\tstats=<sample-count> :: rendering timing statitstics (0=disabled, default)\n"
 	    "\tcollisions=<C> :: n=no collisions, s=simple, i=index\n"
+	    "\trestitution=<C_r> :: restitution coefficient C_r\n"
 	    "\t-r :: activate face rotation\n",
 	    progname);
 }
@@ -245,6 +253,11 @@ int main (int argc, const char *argv[]) {
 	}
 	if (strcmp(argv[i], "-r") ==  0) {
 	    face_rotation = 1;
+	    continue;
+	}
+	double c_r;
+	if (sscanf(argv[i], "restitution=%lf", &c_r) == 1) {
+	    restitution_coefficient_set (c_r);
 	    continue;
 	}
 	print_usage(argv[0]);
