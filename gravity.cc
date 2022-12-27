@@ -91,6 +91,11 @@ void gravity_collisions (ball * begin, ball * end) {
 	double d2 = vec2d::dot(b_c, b_c);
 	double r = b->radius + g_r;
 	if (d2 <= r*r) {
+	    double d = sqrt(d2);
+	    if (d <= b->radius)
+		b->position = vec2d{width/2.0,height/2.0+r};
+	    else
+		b->position += (r - d)/d*b_c;
 	    double f = vec2d::dot(b->velocity, b_c);
 	    if (f < 0) {
 		f /= d2;
