@@ -62,27 +62,101 @@ void game_destroy () {
     balls_destroy ();
 }
 
-static guint timeout_source_id = 0;
-gboolean timeout (gpointer user_data);
+static guint animation_timeout_id = 0;
+gboolean animation_timeout (gpointer user_data);
 
 static bool game_paused () {
-    return timeout_source_id == 0;
+    return animation_timeout_id == 0;
 }
 
 void game_animation_on_off () {
-    if (timeout_source_id == 0) {
-	timeout_source_id = g_timeout_add (delta * 1000, timeout, canvas);
+    if (animation_timeout_id == 0) {
+	animation_timeout_id = g_timeout_add (delta * 1000, animation_timeout, canvas);
     } else {
-	g_source_remove (timeout_source_id);
-	timeout_source_id = 0;
+	g_source_remove (animation_timeout_id);
+	animation_timeout_id = 0;
     }
+}
+
+struct param_controls {
+    void (*draw) (cairo_t * cr);
+    gint (*keyboard_input) (GdkEventKey *event);
+    gboolean (*mouse_scroll) (GtkWidget *widget, GdkEvent *event, gpointer user_data);
+};
+
+gint gravity_controls_keyboard_input (GdkEventKey *event) {
+    switch(event->keyval) {
+    case GDK_KEY_Up:
+	gravity_change (0, -10);
+	return TRUE;
+    case GDK_KEY_Down:
+	gravity_change (0, 10);
+	return TRUE;
+    case GDK_KEY_Left:
+	gravity_change (-10, 0);
+	return TRUE;
+    case GDK_KEY_Right:
+	gravity_change (10, 0);
+	return TRUE;
+    }
+    return FALSE;
+}
+
+param_controls gravity_control = {
+    .draw = gravity_draw,
+    .keyboard_input = gravity_controls_keyboard_input,
+};
+
+gint restitution_coefficient_controls_keyboard_input (GdkEventKey *event) {
+    switch(event->keyval) {
+    case GDK_KEY_Up:
+	restitution_coefficient_change (0.01);
+	return TRUE;
+    case GDK_KEY_Down:
+	restitution_coefficient_change (-0.01);
+	return TRUE;
+    case GDK_KEY_Left:
+	restitution_coefficient_change (-0.01);
+	return TRUE;
+    case GDK_KEY_Right:
+	restitution_coefficient_change (0.01);
+	return TRUE;
+    }
+    return FALSE;
+}
+
+param_controls restitution_coefficient_control = {
+    .draw = restitution_coefficient_draw,
+    .keyboard_input = restitution_coefficient_controls_keyboard_input,
+};
+
+
+
+static param_controls * param_control = nullptr;
+static guint param_control_timeout_id = 0;
+static const guint param_control_active_ms = 3000;
+
+gboolean param_control_timeout (gpointer user_data) {
+    param_control = nullptr;
+    param_control_timeout_id = 0;
+    gtk_widget_queue_draw(canvas);
+    return FALSE;
+}
+
+void param_control_activate (struct param_controls * ctrl) {
+    if (param_control) 
+	g_source_remove (param_control_timeout_id);
+    param_control = ctrl;
+    param_control_timeout_id = g_timeout_add (param_control_active_ms, param_control_timeout, canvas);
+    gtk_widget_queue_draw(canvas);
 }
 
 gboolean draw_frame (GtkWidget * widget, cairo_t *cr, gpointer data) {
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
     cairo_paint(cr);
-    gravity_draw (cr);
-    restitution_coefficient_draw (cr);
+    if (param_control)
+	param_control->draw (cr);
+    gravity_draw_visible_field (cr);
     balls_draw (cr);
     spaceship_draw (cr);
     return FALSE;
@@ -104,33 +178,21 @@ gint configure_event (GtkWidget *widget, GdkEventConfigure * event) {
 gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     if (event->type != GDK_KEY_PRESS)
 	return FALSE;
-    if (! game_paused ()) {
-	switch(event->keyval) {
-	case GDK_KEY_Up:
-	    gravity_change (0, -10);
-	    return TRUE;
-	case GDK_KEY_Down:
-	    gravity_change (0, 10);
-	    return TRUE;
-	case GDK_KEY_Left:
-	    gravity_change (-10, 0);
-	    return TRUE;
-	case GDK_KEY_Right:
-	    gravity_change (10, 0);
-	    return TRUE;
-	case GDK_KEY_R:
-	    restitution_coefficient_change (0.01);
-	    return TRUE;
-	case GDK_KEY_r:
-	    restitution_coefficient_change (-0.01);
-	    return TRUE;
-	case GDK_KEY_G:
-	case GDK_KEY_g:
-	    gravity_show ();
-	    return TRUE;
-	}
+    if (param_control && param_control->keyboard_input (event)) {
+	gtk_widget_queue_draw(canvas);
+	g_source_remove (param_control_timeout_id);
+	param_control_timeout_id = g_timeout_add (param_control_active_ms, param_control_timeout, canvas);
+	return TRUE;
     }
     switch(event->keyval) {
+    case GDK_KEY_R:
+    case GDK_KEY_r:
+	param_control_activate (&restitution_coefficient_control);
+	return TRUE;
+    case GDK_KEY_G:
+    case GDK_KEY_g:
+	param_control_activate (&gravity_control);
+	return TRUE;
     case GDK_KEY_P:
     case GDK_KEY_p:
 	game_animation_on_off ();
@@ -201,7 +263,7 @@ gboolean draw_event (GtkWidget *widget, cairo_t * cr, gpointer data) {
     return FALSE;
 }
 
-gboolean timeout (gpointer user_data) {
+gboolean animation_timeout (gpointer user_data) {
     if (stats_sampling > 0) {
 	guint64 start = g_get_monotonic_time ();
 	update_state();

@@ -1,18 +1,19 @@
-#include <math.h>
+#include <string>
+#include <sstream>
+#include <cmath>
 #include <gtk/gtk.h>
 
 #include "gravity.h"
 #include "game.h"
 
-static vec2d g{.x = 0, .y = 20};
+static const double constant_field_increment = 1.0;
+static const double newton_field_increment = 1000.0;
 
+static vec2d g{.x = 0, .y = 20};
 static double g_r = 50;
 static double g_g = 10000000;
 
 static int constant_field = 1;
-
-static int gravity_vector_countdown = 0;
-static int gravity_vector_init = 300;
 
 void gravity_constant_field (double x, double y) {
     constant_field = 1;
@@ -28,23 +29,36 @@ void gravity_newton_field (double r, double g) {
 
 void gravity_draw (cairo_t * cr) {
     if (constant_field) {
-	if (gravity_vector_countdown != 0) {
-	    cairo_save(cr);
-	    cairo_new_path(cr);
-	    cairo_move_to(cr, width/2, height/2);
-	    cairo_line_to(cr, width/2 + g.x, height/2 + g.y);
-	    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
-	    cairo_set_line_width(cr, 1.0);
-	    cairo_stroke(cr);
-	    cairo_arc(cr, width/2 + g.x, height/2 + g.y, 3, 0, 2*M_PI);
-	    cairo_fill(cr);
-	    if (gravity_vector_countdown > 0)
-		--gravity_vector_countdown;
-	    cairo_restore(cr);
-	}
-    } else {
+	cairo_save(cr);
+	cairo_new_path(cr);
+	cairo_move_to(cr, width/2, height/2);
+	cairo_line_to(cr, width/2 + g.x, height/2 + g.y);
 	cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+	cairo_set_line_width(cr, 1.0);
+	cairo_stroke(cr);
+	cairo_arc(cr, width/2 + g.x, height/2 + g.y, 3, 0, 2*M_PI);
+	cairo_fill(cr);
+	cairo_restore(cr);
+    } else {
+	std::ostringstream output;
+	output << (g_g/1000) << "K";
 	cairo_save (cr);
+	cairo_set_source_rgb (cr, 1.0, 1.0, 1.0);
+	cairo_select_font_face (cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_font_size (cr, 16);
+	std::string output_str = output.str();
+	cairo_text_extents_t extent;
+	cairo_text_extents (cr, output_str.c_str(), &extent);
+	cairo_move_to (cr, width/2 - extent.width/2, height/2 + extent.height/2);
+	cairo_show_text (cr, output_str.c_str());
+	cairo_restore (cr);
+    }
+}
+
+void gravity_draw_visible_field (cairo_t * cr) {
+    if (!constant_field) {
+	cairo_save (cr);
+	cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
 	cairo_new_path (cr);
 	cairo_arc (cr, width/2, height/2, g_r, 0, 2*M_PI);
 	cairo_set_line_width(cr, 3.0);
@@ -53,19 +67,13 @@ void gravity_draw (cairo_t * cr) {
     }
 }
 
-void gravity_show () {
-    if (constant_field)
-	gravity_vector_countdown = gravity_vector_init;
-};
-
 void gravity_change (double dx, double dy) {
     if (constant_field) {
-	g.x += dx;
-	g.y += dy;
-	gravity_show ();
+	g.x += dx*constant_field_increment;
+	g.y += dy*constant_field_increment;
     } else {
 	g_r += dx;
-	g_g += dy;
+	g_g -= dy*newton_field_increment;
     }
 }
 

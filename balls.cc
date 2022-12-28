@@ -23,8 +23,6 @@ unsigned int n_balls = 50;
 // C_r == 0.0 ==> perfectly inelastic collisions
 //
 static double C_r = 1.0;
-static int c_r_display_countdown = 0;
-static int c_r_display_init = 300;
 
 void restitution_coefficient_set (double c) {
     C_r = c;
@@ -44,27 +42,18 @@ void restitution_coefficient_change (double d) {
 	C_r = 1.0;
     else if (C_r < 0.0)
 	C_r = 0.0;
-    restitution_coefficient_show ();
 }
-
-void restitution_coefficient_show () {
-    c_r_display_countdown = c_r_display_init;
-};
 
 void restitution_coefficient_draw (cairo_t * cr) {
     static const double margin = 20;
-    if (c_r_display_countdown != 0) {
-	cairo_save(cr);
-	cairo_new_path(cr);
-	cairo_move_to(cr, margin, margin);
-	cairo_line_to(cr, margin + (width - 2*margin)*C_r, margin);
-	cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
-	cairo_set_line_width(cr, margin/2);
-	cairo_stroke(cr);
-	if (c_r_display_countdown > 0)
-	    --c_r_display_countdown;
-	cairo_restore(cr);
-    }
+    cairo_save(cr);
+    cairo_new_path(cr);
+    cairo_move_to(cr, margin, margin);
+    cairo_line_to(cr, margin + (width - 2*margin)*C_r, margin);
+    cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+    cairo_set_line_width(cr, margin/2);
+    cairo_stroke(cr);
+    cairo_restore(cr);
 }
 
 static vec2d random_velocity() {
