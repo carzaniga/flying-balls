@@ -18,6 +18,55 @@ unsigned int v_angle_max = 100;
 ball * balls = nullptr;
 unsigned int n_balls = 50;
 
+// Coefficient of restitution:
+// C_r == 1.0 ==> perfectly elastic collisions
+// C_r == 0.0 ==> perfectly inelastic collisions
+//
+static double C_r = 1.0;
+static int c_r_display_countdown = 0;
+static int c_r_display_init = 300;
+
+void restitution_coefficient_set (double c) {
+    C_r = c;
+    if (C_r > 1.0)
+	C_r = 1.0;
+    else if (C_r < 0.0)
+	C_r = 0.0;
+}
+
+double restitution_coefficient_get () {
+    return C_r;
+}
+
+void restitution_coefficient_change (double d) {
+    C_r += d;
+    if (C_r > 1.0)
+	C_r = 1.0;
+    else if (C_r < 0.0)
+	C_r = 0.0;
+    restitution_coefficient_show ();
+}
+
+void restitution_coefficient_show () {
+    c_r_display_countdown = c_r_display_init;
+};
+
+void restitution_coefficient_draw (cairo_t * cr) {
+    static const double margin = 20;
+    if (c_r_display_countdown != 0) {
+	cairo_save(cr);
+	cairo_new_path(cr);
+	cairo_move_to(cr, margin, margin);
+	cairo_line_to(cr, margin + (width - 2*margin)*C_r, margin);
+	cairo_set_source_rgb(cr, 1.0, 1.0, 0.0);
+	cairo_set_line_width(cr, margin/2);
+	cairo_stroke(cr);
+	if (c_r_display_countdown > 0)
+	    --c_r_display_countdown;
+	cairo_restore(cr);
+    }
+}
+
 static vec2d random_velocity() {
     double r2;
     vec2d v;
@@ -49,43 +98,45 @@ void balls_init_state () {
     }
 }
 
+void ball_walls_collision (ball * p) {
+    if (p->position.x + p->radius > width) { /* right wall */
+	if (p->velocity.x > 0) {
+	    p->position.x -= p->position.x + p->radius - width;
+	    p->velocity.x = -C_r*p->velocity.x;
+	}
+    } else if (p->position.x < p->radius) { /* left wall */
+	if (p->velocity.x < 0) {
+	    p->position.x += p->radius - p->position.x;
+	    p->velocity.x = -C_r*p->velocity.x;
+	}
+    } 
+    if (p->position.y + p->radius > height) { /* bottom wall */
+	if (p->velocity.y > 0) {
+	    p->position.y -= p->position.y + p->radius - height;
+	    p->velocity.y = -C_r*p->velocity.y;
+	}
+    } else if (p->position.y < p->radius) { /* top wall */
+	if (p->velocity.y < 0) {
+	    p->position.y += p->radius - p->position.y;
+	    p->velocity.y = -C_r*p->velocity.y;
+	}
+    }
+}
+
 void ball_update_state (ball * p) {
     vec2d g = gravity_vector (p);
 
     p->position += delta*p->velocity + delta*delta*g/2.0;
     p->velocity += delta*g;
-
-    if (p->position.x + p->radius > width) { /* right wall */
-	if (p->velocity.x > 0) {
-	    p->position.x -= p->position.x + p->radius - width;
-	    p->velocity.x = -p->velocity.x;
-	}
-    } else if (p->position.x < p->radius) { /* left wall */
-	if (p->velocity.x < 0) {
-	    p->position.x += p->radius - p->position.x;
-	    p->velocity.x = -p->velocity.x;
-	}
-    } 
-
-    if (p->position.y + p->radius > height) { /* bottom wall */
-	if (p->velocity.y > 0) {
-	    p->position.y -= p->position.y + p->radius - height;
-	    p->velocity.y = -p->velocity.y;
-	}
-    } else if (p->position.y < p->radius) { /* top wall */
-	if (p->velocity.y < 0) {
-	    p->position.y += p->radius - p->position.y;
-	    p->velocity.y = -p->velocity.y;
-	}
-    } 
     p->angle += delta*p->v_angle;
     while (p->angle >= 2*M_PI)
 	p->angle -= 2*M_PI;
     while (p->angle < 0)
 	p->angle += 2*M_PI;
+    ball_walls_collision (p);
 }
 
-void ball_elastic_collision (ball * p, ball * q) {
+void ball_ball_collision (ball * p, ball * q) {
     vec2d pq = q->position - p->position;
     double d2 = vec2d::dot(pq,pq);
     double r = p->radius + q->radius;
@@ -94,13 +145,19 @@ void ball_elastic_collision (ball * p, ball * q) {
 
 	double mp = p->radius * p->radius;
 	double mq = q->radius * q->radius;
+	double m_total = mp + mp;
+
+	double d = sqrt(d2);
+	vec2d pq_overlap = (r - d)/d*pq;
+	p->position -= pq_overlap*mq/m_total;
+	q->position += pq_overlap*mp/m_total;
 
 	double f = vec2d::dot(pq_v, pq);
 
 	if (f < 0) {
 	    f /= d2*(mp + mq);
-	    p->velocity += 2*mq*f*pq;
-	    q->velocity -= 2*mp*f*pq;
+	    p->velocity += 2*C_r*mq*f*pq;
+	    q->velocity -= 2*C_r*mp*f*pq;
 	}
     }
 }

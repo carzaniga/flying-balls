@@ -39,8 +39,14 @@ extern int face_rotation;
 extern void balls_init ();
 extern void balls_destroy ();
 extern void ball_update_state (ball * p);
-extern void ball_elastic_collision (ball * p, ball * q);
+extern void ball_ball_collision (ball * p, ball * q);
 extern void ball_reposition (ball * b);
 extern void balls_draw (cairo_t * cr);
+
+extern void restitution_coefficient_show ();
+extern void restitution_coefficient_draw (cairo_t * cr);
+extern void restitution_coefficient_set (double c);
+extern double restitution_coefficient_get ();
+extern void restitution_coefficient_change (double d);
 
 #endif
