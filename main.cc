@@ -62,6 +62,22 @@ void game_destroy () {
     balls_destroy ();
 }
 
+static guint timeout_source_id = 0;
+gboolean timeout (gpointer user_data);
+
+static bool game_paused () {
+    return timeout_source_id == 0;
+}
+
+void game_animation_on_off () {
+    if (timeout_source_id == 0) {
+	timeout_source_id = g_timeout_add (delta * 1000, timeout, canvas);
+    } else {
+	g_source_remove (timeout_source_id);
+	timeout_source_id = 0;
+    }
+}
+
 gboolean draw_frame (GtkWidget * widget, cairo_t *cr, gpointer data) {
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 1.0);
     cairo_paint(cr);
@@ -88,41 +104,47 @@ gint configure_event (GtkWidget *widget, GdkEventConfigure * event) {
 gint keyboard_input (GtkWidget *widget, GdkEventKey *event) {
     if (event->type != GDK_KEY_PRESS)
 	return FALSE;
+    if (! game_paused ()) {
+	switch(event->keyval) {
+	case GDK_KEY_Up:
+	    gravity_change (0, -10);
+	    return TRUE;
+	case GDK_KEY_Down:
+	    gravity_change (0, 10);
+	    return TRUE;
+	case GDK_KEY_Left:
+	    gravity_change (-10, 0);
+	    return TRUE;
+	case GDK_KEY_Right:
+	    gravity_change (10, 0);
+	    return TRUE;
+	case GDK_KEY_R:
+	    restitution_coefficient_change (0.01);
+	    return TRUE;
+	case GDK_KEY_r:
+	    restitution_coefficient_change (-0.01);
+	    return TRUE;
+	case GDK_KEY_G:
+	case GDK_KEY_g:
+	    gravity_show ();
+	    return TRUE;
+	}
+    }
     switch(event->keyval) {
-    case GDK_KEY_Up:
-	gravity_change (0, -10);
-	break;
-    case GDK_KEY_Down:
-	gravity_change (0, 10);
-	break;
-    case GDK_KEY_Left:
-	gravity_change (-10, 0);
-	break;
-    case GDK_KEY_Right:
-	gravity_change (10, 0);
-	break;
-    case GDK_KEY_R:
-	restitution_coefficient_change (0.01);
-	break;
-    case GDK_KEY_r:
-	restitution_coefficient_change (-0.01);
-	break;
-    case GDK_KEY_G:
-    case GDK_KEY_g:
-	gravity_show ();
-	break;
+    case GDK_KEY_P:
+    case GDK_KEY_p:
+	game_animation_on_off ();
+	return TRUE;
     case GDK_KEY_Q:
     case GDK_KEY_q:
 	gtk_main_quit();
-	break;
-    default:
-	return FALSE;
+	return TRUE;
     }
-    return TRUE;
+    return FALSE;
 }
 
 gboolean mouse_scroll (GtkWidget *widget, GdkEvent *event, gpointer user_data) {
-    if (event->type == GDK_SCROLL) {
+    if (event->type == GDK_SCROLL && ! game_paused ()) {
         GdkEventScroll * e = (GdkEventScroll*) event;
 	switch (e->direction) {
 	case GDK_SCROLL_SMOOTH: {
@@ -285,7 +307,7 @@ int main (int argc, const char *argv[]) {
 
     gtk_container_add (GTK_CONTAINER (window), canvas);
 
-    g_timeout_add (delta * 1000, timeout, canvas);
+    game_animation_on_off ();
 
     gtk_widget_show_all(window);
 
