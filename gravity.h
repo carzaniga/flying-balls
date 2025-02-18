@@ -6,7 +6,7 @@
 extern void gravity_constant_field (double x, double y);
 extern void gravity_newton_field (double r, double g);
 
-extern vec2d gravity_vector (const ball * b);
+extern void gravity_apply (ball * b);
 
 extern void gravity_draw_visible_field (cairo_t * cr);
 

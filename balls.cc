@@ -1,6 +1,9 @@
 #include <vector>
 #include <cmath>
 #include <cassert>
+#include <cstdlib> 		// for rand()
+
+#include <gtk/gtk.h>
 
 #include "game.h"
 #include "balls.h"
@@ -113,10 +116,7 @@ void ball_walls_collision (ball * p) {
 }
 
 void ball_update_state (ball * p) {
-    vec2d g = gravity_vector (p);
-
-    p->position += delta*p->velocity + delta*delta*g/2.0;
-    p->velocity += delta*g;
+    gravity_apply (p);
     p->angle += delta*p->v_angle;
     while (p->angle >= 2*M_PI)
 	p->angle -= 2*M_PI;

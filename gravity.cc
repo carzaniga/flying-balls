@@ -77,17 +77,18 @@ void gravity_change (double dx, double dy) {
     }
 }
 
-vec2d gravity_vector (const ball * b) {
+void gravity_apply (ball * b) {
     if (constant_field) {
-	return g;
+	b->position += delta*b->velocity + delta*delta*g/2.0;
+	b->velocity += delta*g;
     } else {
 	vec2d b_c = vec2d{width/2.0,height/2.0} - b->position;
 	double r2 = vec2d::dot(b_c,b_c);
-	if (r2 < g_r*g_r) {
-	    return vec2d{0,0};
-	} else {
-	    return g_g/r2/sqrt(r2)*b_c;
-	}
+	if (r2 < g_r*g_r)
+	    return;
+	vec2d gr = g_g/r2/sqrt(r2)*b_c;
+	b->position += delta*b->velocity + delta*delta*gr/2.0;
+	b->velocity += delta*gr;
     }
 }
 
